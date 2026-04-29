@@ -12,7 +12,7 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 | --- | --- | --- |
 | Android build, lint, debug/release APK | Passing through `TianXianQuant/scripts/verify_p0.sh` | Go for internal testing |
 | Emulator smoke flow | Passing through `TianXianQuant/scripts/verify_emulator_smoke.sh` | Go for internal testing |
-| Subscription value surfaces | Implemented as local research tools | Go for MVP validation |
+| Subscription value surfaces | Implemented as local research tools, including K-line-driven historical backtests | Go for MVP validation |
 | Real payments | Backend sandbox order/callback scaffold exists; merchant callbacks not connected | No-go for paid launch |
 | Server-side entitlement | Backend source-of-truth scaffold exists; Android has a build-flagged sync path but production API is not deployed | No-go for paid launch |
 | Market data authorization | Public/free sources only | No-go for premium data claims |
@@ -33,9 +33,10 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 
 - Multi-source public quote/K-line fallback and local quote cache.
 - Local watchlist, stock diagnosis, watchlist health, review history, quant diagnosis, community digest.
+- Historical quant backtests using real daily K-line samples, custom stock code/date inputs, transaction-cost assumptions, risk scoring, and no synthetic fallback.
 - Debug-only local payment simulation.
 - Local backend scaffold for accounts, orders, sandbox callbacks, entitlement, account deletion, and premium data proxy contracts.
-- Build-flagged Android backend sync for login, entitlement refresh, and Debug sandbox subscription verification.
+- Build-flagged Android backend sync for login, entitlement refresh, account deletion, and Debug sandbox subscription verification.
 - Repeatable local verification scripts and GitHub Actions P0 workflow.
 
 ## Risk Notes
@@ -43,4 +44,5 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 - Local Room VIP state is intentionally not tamper resistant.
 - Public quote sources can rate-limit, change format, or become unavailable.
 - Research reports are heuristic summaries and should remain framed as records, not advice.
+- Backtests are historical simulations with simplified execution assumptions, not live trading signals or future return promises.
 - Community content remains local/demo-only; there is no moderation backend.

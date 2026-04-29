@@ -151,6 +151,9 @@ interface UserStateDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(entity: UserStateEntity)
+
+    @Query("DELETE FROM user_state")
+    suspend fun clear()
 }
 
 @Dao
@@ -172,6 +175,9 @@ interface PostDao {
 
     @Query("UPDATE posts SET comments = comments + 1 WHERE id = :postId")
     suspend fun incrementComments(postId: String)
+
+    @Query("DELETE FROM posts")
+    suspend fun clear()
 }
 
 @Dao
@@ -181,6 +187,9 @@ interface PostCommentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(comment: PostCommentEntity)
+
+    @Query("DELETE FROM post_comments")
+    suspend fun clear()
 }
 
 @Dao
@@ -190,6 +199,9 @@ interface StockFilterDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(filter: StockFilterEntity)
+
+    @Query("DELETE FROM stock_filter")
+    suspend fun clear()
 }
 
 @Dao
@@ -205,6 +217,9 @@ interface StockWatchlistDao {
 
     @Query("DELETE FROM stock_watchlist WHERE code = :code")
     suspend fun delete(code: String)
+
+    @Query("DELETE FROM stock_watchlist")
+    suspend fun clear()
 }
 
 @Dao
@@ -220,6 +235,9 @@ interface PortfolioHoldingDao {
 
     @Query("DELETE FROM portfolio_holdings WHERE code = :code")
     suspend fun delete(code: String)
+
+    @Query("DELETE FROM portfolio_holdings")
+    suspend fun clear()
 }
 
 @Dao
@@ -232,6 +250,9 @@ interface StockQuoteCacheDao {
 
     @Query("DELETE FROM stock_quote_cache WHERE fetchedAt < :minFetchedAt")
     suspend fun deleteOlderThan(minFetchedAt: Long)
+
+    @Query("DELETE FROM stock_quote_cache")
+    suspend fun clear()
 }
 
 @Dao
@@ -241,6 +262,9 @@ interface StrategyDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(strategy: StrategyEntity)
+
+    @Query("DELETE FROM custom_strategies")
+    suspend fun clear()
 }
 
 @Dao
@@ -250,6 +274,9 @@ interface ReviewSnapshotDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(snapshot: ReviewSnapshotEntity)
+
+    @Query("DELETE FROM review_snapshots")
+    suspend fun clear()
 }
 
 @Database(

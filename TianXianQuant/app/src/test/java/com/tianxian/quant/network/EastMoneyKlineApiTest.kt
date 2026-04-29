@@ -23,4 +23,21 @@ class EastMoneyKlineApiTest {
         assertEquals(115.5, average.ma10, 0.001)
         assertEquals(110.5, average.ma20, 0.001)
     }
+
+    @Test
+    fun parsesDailyKlinesForHistoricalBacktest() {
+        val body = "{\"data\":{\"klines\":[" +
+            "\"2026-04-01,101,102,103,100,1200\"," +
+            "\"2026-04-02,102,104,105,101,1500\"" +
+            "]}}"
+
+        val rows = EastMoneyKlineApi.parseDailyKlines("600519", body)
+
+        assertEquals(2, rows.size)
+        assertEquals("600519", rows.first().code)
+        assertEquals("2026-04-01", rows.first().date)
+        assertEquals(101.0, rows.first().open, 0.001)
+        assertEquals(104.0, rows.last().close, 0.001)
+        assertEquals(1500L, rows.last().volume)
+    }
 }

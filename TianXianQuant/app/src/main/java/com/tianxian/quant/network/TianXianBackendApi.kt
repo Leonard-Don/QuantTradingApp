@@ -8,6 +8,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -131,6 +132,11 @@ interface TianXianBackendApi {
         @Header("Authorization") authorization: String
     ): BackendEntitlementResponse
 
+    @DELETE("v1/me")
+    suspend fun deleteMe(
+        @Header("Authorization") authorization: String
+    ): Map<String, String>
+
     @POST("v1/orders")
     suspend fun createOrder(
         @Header("Authorization") authorization: String,
@@ -250,6 +256,23 @@ object TianXianBackendRepository {
             )
         }.getOrElse {
             BackendAccountSync.failure("服务端订阅同步失败：${it.shortMessage()}")
+        }
+    }
+
+    suspend fun deleteAccount(accessToken: String?): BackendAccountSync {
+        if (!isEnabled) return BackendAccountSync.disabled()
+        if (accessToken.isNullOrBlank()) {
+            return BackendAccountSync.failure("缺少服务端访问令牌，无法删除服务端账号")
+        }
+        return runCatching {
+            api.deleteMe(bearer(accessToken))
+            BackendAccountSync.success(
+                auth = null,
+                entitlement = null,
+                message = "服务端账号已删除"
+            )
+        }.getOrElse {
+            BackendAccountSync.failure("服务端账号删除失败：${it.shortMessage()}")
         }
     }
 

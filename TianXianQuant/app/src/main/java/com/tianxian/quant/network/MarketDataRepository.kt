@@ -2,9 +2,11 @@ package com.tianxian.quant.network
 
 import com.tianxian.quant.data.CachedStockQuoteSnapshot
 import com.tianxian.quant.data.LocalStateRepository
+import com.tianxian.quant.model.DailyKline
 import com.tianxian.quant.model.MarketOverview
 import com.tianxian.quant.model.MovingAverageInfo
 import com.tianxian.quant.model.StockInfo
+import java.time.LocalDate
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -130,6 +132,17 @@ object MarketDataRepository {
 
     suspend fun getMovingAverages(codes: List<String>): Map<String, MovingAverageInfo> {
         return getMovingAveragesResult(codes).getOrNull().orEmpty()
+    }
+
+    suspend fun getDailyKlinesResult(
+        code: String,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): MarketDataResult<List<DailyKline>> {
+        if (!code.matches(Regex("\\d{6}"))) {
+            return MarketDataResult.Failure("股票代码格式无效")
+        }
+        return EastMoneyKlineApi.getDailyKlinesResult(code, startDate, endDate)
     }
 
     private suspend fun successAndCache(

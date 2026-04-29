@@ -8,6 +8,7 @@
 - [x] Release build disables local VIP activation.
 - [x] Release build enables R8 minify and resource shrink.
 - [x] App states that reports are research references, not investment advice.
+- [x] Quant backtests use historical daily K-line samples instead of static demo metrics.
 
 ## Store Test Release
 
@@ -22,7 +23,7 @@
 - [ ] Add data-source disclaimer.
 - [ ] Validate notification permission copy.
 - [ ] Validate account deletion/support contact path.
-- [ ] Wire Android account deletion UI to `DELETE /v1/me`.
+- [x] Wire Android account deletion UI to `DELETE /v1/me` and local data cleanup.
 - [ ] Confirm target SDK policy before upload.
 
 ## Paid Launch
@@ -47,6 +48,8 @@
 - [ ] VIP active state.
 - [ ] Notification permission denied.
 - [ ] Notification permission granted.
+- [ ] Account deletion clears local watchlist, holdings, posts, strategies, snapshots, quote cache, and server account when backend sync is enabled.
+- [ ] Quant historical backtest with a 6-digit stock code and one-year date range.
 - [ ] Large font / accessibility text scale.
 - [ ] Tablet layout.
 

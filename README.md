@@ -26,7 +26,7 @@
 - VIP专属内容
 
 ### 4. 量化模块
-- 策略回测（VIP）
+- 历史 K 线模拟回测（VIP）
 - 多因子模型（VIP）
 - 趋势/网格/动量策略（VIP）
 - 量化信号（仅模型，无买卖指令）
@@ -116,7 +116,8 @@ TianXianQuant/
 ## 当前工程状态
 
 - 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；实时源不可用时优先展示最近本机行情缓存，并明确标注缓存时间。
-- Android 端登录、社区、VIP 到期时间默认保留本机 Room 演示状态；构建时可通过 `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/` 开启后端账号、权益和 Debug 沙盒订单同步。
+- 量化回测已使用东方财富日线样本、可选标的代码和日期区间，按收盘价信号、全仓进出和单边成本估算历史指标，不再用静态演示指标冒充回测。
+- Android 端登录、社区、VIP 到期时间默认保留本机 Room 演示状态；构建时可通过 `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/` 开启后端账号、权益、账号删除和 Debug 沙盒订单同步。
 - 仓库已包含本地 FastAPI 后端骨架，用于账号、订单、权益、支付回调和高级数据代理接入。
 - Debug 可本地模拟支付开通；Release 中 `ALLOW_LOCAL_PAYMENT_SIMULATION=false`，不会直接开通 VIP。
 - Release 已开启 R8 混淆与资源压缩，但正式上架仍需要签名、AAB、真实支付/账号服务与隐私合规材料。
@@ -150,7 +151,7 @@ scripts/verify_all.sh
 
 ## 下一步开发
 
-1. 部署 `backend/`，在 QA/Release 构建中开启后端同步开关并补齐账号删除 UI。
+1. 部署 `backend/`，在 QA/Release 构建中开启后端同步开关，并接入真实账号服务运维、备份和监控。
 2. 接入正式微信/支付宝或 Google Play Billing 商户配置，替换 sandbox 回调。
 3. 配置 Release 签名、AAB 上传、隐私政策 URL、用户协议 URL 和应用商店材料。
 4. 扩展 Repository/ViewModel 测试覆盖，补充真实异常路径与权益边界测试。

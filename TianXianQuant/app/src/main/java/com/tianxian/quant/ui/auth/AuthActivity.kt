@@ -105,6 +105,10 @@ class AuthActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnDeleteAccount.setOnClickListener {
+            confirmDeleteAccount()
+        }
+
         binding.btnNotify.setOnClickListener {
             toggleDailyReminder()
         }
@@ -139,6 +143,24 @@ class AuthActivity : AppCompatActivity() {
         lifecycleScope.launch {
             renderState(LocalStateRepository.refreshBackendEntitlements())
         }
+    }
+
+    private fun confirmDeleteAccount() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.auth_delete_account))
+            .setMessage(getString(R.string.auth_delete_account_confirm_message))
+            .setPositiveButton(getString(R.string.auth_delete_account_confirm)) { _, _ ->
+                lifecycleScope.launch {
+                    val result = LocalStateRepository.deleteAccount()
+                    if (result.success) {
+                        NotificationHelper.cancelDailyReminder(this@AuthActivity)
+                    }
+                    renderState(LocalStateRepository.getUserState())
+                    Toast.makeText(this@AuthActivity, result.message, Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton(getString(R.string.dialog_cancel), null)
+            .show()
     }
 
     private fun renderState(state: UserStateEntity) {

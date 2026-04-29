@@ -92,6 +92,12 @@ class QuantFragment : Fragment() {
         viewModel.backtestResult.observe(viewLifecycleOwner) { result ->
             result?.let { showBacktestResult(it) }
         }
+        viewModel.backtestError.observe(viewLifecycleOwner) { error ->
+            error?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
+                viewModel.clearBacktestError()
+            }
+        }
         viewModel.signalStatus.observe(viewLifecycleOwner) { status ->
             binding.tvSignalStatus.text = status
         }
@@ -185,12 +191,14 @@ class QuantFragment : Fragment() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_backtest_config, null)
         val tvStrategy = dialogView.findViewById<android.widget.TextView>(R.id.tvBacktestStrategy)
+        val etStockCode = dialogView.findViewById<TextInputEditText>(R.id.etBacktestStockCode)
         val etStartDate = dialogView.findViewById<TextInputEditText>(R.id.etBacktestStartDate)
         val etEndDate = dialogView.findViewById<TextInputEditText>(R.id.etBacktestEndDate)
         val defaultEndDate = LocalDate.now()
         val defaultStartDate = defaultEndDate.minusYears(1)
 
         tvStrategy.text = strategy.name
+        etStockCode.setText(getString(R.string.backtest_default_stock_code))
         etStartDate.setText(defaultStartDate.toString())
         etEndDate.setText(defaultEndDate.toString())
 
@@ -202,14 +210,19 @@ class QuantFragment : Fragment() {
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val stockCode = etStockCode.text?.toString()?.trim().orEmpty()
                 val startDate = etStartDate.text?.toString()?.trim().orEmpty()
                 val endDate = etEndDate.text?.toString()?.trim().orEmpty()
+                if (!stockCode.matches(Regex("\\d{6}"))) {
+                    Toast.makeText(requireContext(), "请输入 6 位股票代码", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
                 val error = validateBacktestDates(startDate, endDate)
                 if (error != null) {
                     Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show()
                     return@setOnClickListener
                 }
-                viewModel.runBacktest(strategy.id, startDate, endDate)
+                viewModel.runBacktest(strategy.id, stockCode, startDate, endDate)
                 Toast.makeText(requireContext(), "正在运行历史模拟...", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
@@ -245,7 +258,10 @@ class QuantFragment : Fragment() {
             )
         )
         val message = buildString {
+            append("标的代码：${result.stockCode}\n")
             append("回测周期：${result.startDate} ~ ${result.endDate}\n\n")
+            append("数据口径：${result.dataSource}，样本交易日 ${result.sampleDays} 天\n")
+            append("${result.dataStatus}\n\n")
             append("历史模拟指标：\n")
             append("• 样本总收益：${String.format(Locale.CHINA, "%.1f", result.totalReturn)}%\n")
             append("• 样本年化：${String.format(Locale.CHINA, "%.1f", result.annualizedReturn)}%\n")

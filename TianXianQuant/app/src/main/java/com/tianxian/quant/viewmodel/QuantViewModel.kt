@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
+import com.tianxian.quant.model.HistoricalBacktestPolicy
 import com.tianxian.quant.model.QuantDiagnosticPolicy
 import com.tianxian.quant.model.QuantDiagnosticReport
 import com.tianxian.quant.model.QuantSignal
@@ -15,7 +16,6 @@ import com.tianxian.quant.network.MarketDataResult
 import com.tianxian.quant.network.MarketDataRepository
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.UUID
 
@@ -32,6 +32,9 @@ class QuantViewModel : ViewModel() {
 
     private val _backtestResult = MutableLiveData<BacktestResult?>()
     val backtestResult: LiveData<BacktestResult?> = _backtestResult
+
+    private val _backtestError = MutableLiveData<String?>()
+    val backtestError: LiveData<String?> = _backtestError
 
     private val _isVipActive = MutableLiveData(false)
     val isVipActive: LiveData<Boolean> = _isVipActive
@@ -75,15 +78,17 @@ class QuantViewModel : ViewModel() {
 
     fun runBacktest(
         strategyId: String,
+        stockCode: String = DEFAULT_BACKTEST_CODE,
         startDate: String = LocalDate.now().minusYears(1).toString(),
         endDate: String = LocalDate.now().toString()
     ) {
         viewModelScope.launch {
             _isLoading.value = true
-            kotlinx.coroutines.delay(800)
+            _backtestError.value = null
 
             val strategy = allStrategies.find { it.id == strategyId }
             if (strategy == null) {
+                _backtestError.value = "未找到要回测的模型"
                 _isLoading.value = false
                 return@launch
             }
@@ -92,38 +97,51 @@ class QuantViewModel : ViewModel() {
             val parsedStart = runCatching { LocalDate.parse(startDate) }.getOrDefault(parsedEnd.minusYears(1))
             val start = if (parsedStart.isAfter(parsedEnd)) parsedEnd.minusYears(1) else parsedStart
             val end = parsedEnd
-            val periodDays = ChronoUnit.DAYS.between(start, end).coerceAtLeast(1)
-            val periodFactor = (periodDays / 365.0).coerceIn(0.05, 10.0)
-            val stabilityFactor = when (strategy.id) {
-                "1" -> 0.92
-                "2" -> 0.88
-                "3" -> 0.84
-                "4" -> 0.76
-                "5" -> 0.90
-                else -> 0.72
-            }
-            val annualizedReturn = strategy.annualReturn * stabilityFactor
-            val sampleTrades = (strategy.totalTrades * periodFactor).toInt().coerceAtLeast(1)
+            val warmupStart = start.minusDays(BACKTEST_WARMUP_DAYS)
 
-            _backtestResult.value = BacktestResult(
-                strategyId = strategyId,
-                strategyName = strategy.name,
-                startDate = start.toString(),
-                endDate = end.toString(),
-                totalReturn = (annualizedReturn * periodFactor).toFloat(),
-                maxDrawdown = strategy.maxDrawdown.toFloat(),
-                sharpeRatio = strategy.sharpeRatio.toFloat(),
-                winRate = strategy.winRate.toFloat(),
-                totalTrades = sampleTrades,
-                profitTrades = (sampleTrades * strategy.winRate / 100).toInt(),
-                annualizedReturn = annualizedReturn.toFloat()
-            )
+            when (val klineResult = MarketDataRepository.getDailyKlinesResult(stockCode, warmupStart, end)) {
+                is MarketDataResult.Failure -> {
+                    _backtestError.value = "${klineResult.message}，历史模拟无法生成。"
+                    _isLoading.value = false
+                    return@launch
+                }
+                is MarketDataResult.Success -> {
+                    val result = HistoricalBacktestPolicy.run(strategy, klineResult.data, start, end)
+                    if (result == null) {
+                        _backtestError.value = "K 线样本不足，至少需要约 80 个交易日含预热数据。"
+                        _isLoading.value = false
+                        return@launch
+                    }
+                    val metrics = result.metrics
+                    _backtestResult.value = BacktestResult(
+                        strategyId = strategyId,
+                        strategyName = strategy.name,
+                        stockCode = stockCode,
+                        startDate = start.toString(),
+                        endDate = end.toString(),
+                        totalReturn = metrics.totalReturn.toFloat(),
+                        maxDrawdown = metrics.maxDrawdown.toFloat(),
+                        sharpeRatio = metrics.sharpeRatio.toFloat(),
+                        winRate = metrics.winRate.toFloat(),
+                        totalTrades = metrics.totalTrades,
+                        profitTrades = metrics.profitTrades,
+                        annualizedReturn = metrics.annualizedReturn.toFloat(),
+                        sampleDays = result.sampleDays,
+                        dataSource = klineResult.source,
+                        dataStatus = "基于 ${klineResult.source} 日线、收盘价信号、全仓进出和单边 0.15% 成本估算。"
+                    )
+                }
+            }
             _isLoading.value = false
         }
     }
 
     fun clearBacktestResult() {
         _backtestResult.value = null
+    }
+
+    fun clearBacktestError() {
+        _backtestError.value = null
     }
 
     fun createCustomStrategy(name: String, description: String, formula: String): Strategy {
@@ -352,6 +370,7 @@ class QuantViewModel : ViewModel() {
     data class BacktestResult(
         val strategyId: String,
         val strategyName: String,
+        val stockCode: String,
         val startDate: String,
         val endDate: String,
         val totalReturn: Float,
@@ -360,6 +379,14 @@ class QuantViewModel : ViewModel() {
         val winRate: Float,
         val totalTrades: Int,
         val profitTrades: Int,
-        val annualizedReturn: Float
+        val annualizedReturn: Float,
+        val sampleDays: Int,
+        val dataSource: String,
+        val dataStatus: String
     )
+
+    private companion object {
+        const val DEFAULT_BACKTEST_CODE = "600519"
+        const val BACKTEST_WARMUP_DAYS = 140L
+    }
 }

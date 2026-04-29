@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">天线量化</string>
     <string name="dialog_close">关闭</string>
+    <string name="dialog_cancel">取消</string>
 
     <!-- Tabs -->
     <string name="tab_stock">选股</string>
@@ -98,6 +99,9 @@
     <string name="auth_enable_daily_reminder">开启每日研究提醒</string>
     <string name="auth_send_test_reminder">发送测试提醒</string>
     <string name="auth_logout">退出登录</string>
+    <string name="auth_delete_account">删除账号与本机资料</string>
+    <string name="auth_delete_account_confirm">确认删除</string>
+    <string name="auth_delete_account_confirm_message">将删除本机账号状态、自选池、持仓、帖子、评论、策略、复盘快照和行情缓存；启用服务端同步且当前已登录时，也会先请求删除服务端账号。此操作不可恢复。</string>
     <string name="auth_local_account_notice">未启用服务端同步时，账号信息仅保存在本机；启用后会同步登录态与 VIP 权益。</string>
     <string name="auth_status_logged_in">已登录</string>
     <string name="auth_status_logged_out">未登录</string>
@@ -130,7 +134,9 @@
     <string name="quant_diagnostic_open_vip">去订阅</string>
     <string name="quant_diagnostic_refresh">刷新诊断</string>
     <string name="quant_diagnostic_loading">模型诊断暂不可用，正在刷新样本数据。</string>
-    <string name="backtest_config_notice">回测为历史模拟研究工具，请输入 yyyy-MM-dd 格式日期。</string>
+    <string name="backtest_config_notice">回测为历史模拟研究工具，使用授权/公开 K 线的收盘价信号估算，不代表未来结果。</string>
+    <string name="backtest_stock_code_hint">股票代码（6位）</string>
+    <string name="backtest_default_stock_code">600519</string>
     <string name="backtest_start_date_hint">开始日期</string>
     <string name="backtest_end_date_hint">结束日期</string>
     <string name="strategy_name_hint">策略名称</string>

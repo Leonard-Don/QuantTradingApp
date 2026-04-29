@@ -29,6 +29,16 @@ data class MovingAverageInfo(
     val ma20: Double
 )
 
+data class DailyKline(
+    val code: String,
+    val date: String,
+    val open: Double,
+    val close: Double,
+    val high: Double,
+    val low: Double,
+    val volume: Long
+)
+
 data class SectorInfo(
     val name: String,
     val code: String = "",

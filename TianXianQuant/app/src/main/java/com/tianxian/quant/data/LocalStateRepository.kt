@@ -1,5 +1,6 @@
 package com.tianxian.quant.data
 
+import androidx.room.withTransaction
 import com.tianxian.quant.BuildConfig
 import com.tianxian.quant.model.Post
 import com.tianxian.quant.model.PostComment
@@ -24,6 +25,11 @@ data class CachedStockQuoteSnapshot(
     val stocks: List<StockInfo>,
     val fetchedAt: Long,
     val originalSources: List<String>
+)
+
+data class AccountDeletionResult(
+    val success: Boolean,
+    val message: String
 )
 
 object LocalStateRepository {
@@ -124,6 +130,32 @@ object LocalStateRepository {
                     state.backendSyncStatus
                 }
             )
+        )
+    }
+
+    suspend fun deleteAccount(): AccountDeletionResult {
+        val state = getUserState()
+        val backendSync = if (TianXianBackendRepository.isEnabled && !state.backendAccessToken.isNullOrBlank()) {
+            TianXianBackendRepository.deleteAccount(state.backendAccessToken)
+        } else {
+            BackendAccountSync.disabled()
+        }
+        if (backendSync.enabled && !backendSync.success) {
+            db.userStateDao().save(state.copy(backendSyncStatus = backendSync.message))
+            return AccountDeletionResult(false, backendSync.message)
+        }
+
+        clearLocalUserData(
+            backendSync.message.takeIf { backendSync.enabled }
+                ?: "本机账号和研究资料已删除"
+        )
+        return AccountDeletionResult(
+            success = true,
+            message = if (backendSync.enabled) {
+                "服务端账号和本机资料已删除"
+            } else {
+                "本机账号和研究资料已删除"
+            }
         )
     }
 
@@ -539,6 +571,26 @@ object LocalStateRepository {
             strongStockSummary = strongStockSummary,
             createdAt = createdAt
         )
+    }
+
+    private suspend fun clearLocalUserData(statusMessage: String) {
+        db.withTransaction {
+            db.postCommentDao().clear()
+            db.postDao().clear()
+            db.stockFilterDao().clear()
+            db.stockWatchlistDao().clear()
+            db.portfolioHoldingDao().clear()
+            db.stockQuoteCacheDao().clear()
+            db.strategyDao().clear()
+            db.reviewSnapshotDao().clear()
+            db.userStateDao().clear()
+            db.userStateDao().save(
+                UserStateEntity(
+                    backendSyncStatus = statusMessage,
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+        }
     }
 
     private fun applyBackendSync(state: UserStateEntity, sync: BackendAccountSync): UserStateEntity {
