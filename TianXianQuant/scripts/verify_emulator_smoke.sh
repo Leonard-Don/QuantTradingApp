@@ -313,6 +313,7 @@ select_review_tab "自选体检" "VIP自选池体检"
 select_review_tab "持仓组合" "VIP持仓组合"
 select_review_tab "压力测试" "VIP自选池压力测试"
 select_review_tab "研究简报" "VIP每日研究简报"
+select_review_tab "研究计划" "VIP研究计划"
 
 tap_node "$REVIEW_XML" "content-desc" "社区"
 sleep 1

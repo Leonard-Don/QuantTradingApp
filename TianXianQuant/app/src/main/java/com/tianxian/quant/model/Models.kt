@@ -55,7 +55,8 @@ data class ReviewData(
     val watchlistHealthReport: WatchlistHealthReport? = null,
     val portfolioStressReport: PortfolioStressReport? = null,
     val dailyResearchBriefReport: DailyResearchBriefReport? = null,
-    val portfolioHoldingReport: PortfolioHoldingReport? = null
+    val portfolioHoldingReport: PortfolioHoldingReport? = null,
+    val researchPlanReport: ResearchPlanReport? = null
 )
 
 data class ReviewSnapshot(

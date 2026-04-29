@@ -9,6 +9,7 @@ import com.tianxian.quant.model.DailyResearchBriefPolicy
 import com.tianxian.quant.model.MarketOverview
 import com.tianxian.quant.model.PortfolioHoldingPolicy
 import com.tianxian.quant.model.PortfolioStressPolicy
+import com.tianxian.quant.model.ResearchPlanPolicy
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
 import com.tianxian.quant.model.SectorInfo
@@ -123,6 +124,19 @@ class ReviewViewModel : ViewModel() {
             portfolioStressReport = portfolioStressReport,
             portfolioHoldingReport = portfolioHoldingReport
         )
+        val researchPlanReport = ResearchPlanPolicy.evaluate(
+            date = today,
+            upCount = upCount,
+            downCount = downCount,
+            totalAmount = totalAmount,
+            hotSectors = sectors,
+            strongStocks = stocks.sortedByDescending { it.changePercent }.take(5),
+            watchlistStocks = watchlistStocks,
+            watchlistHealthReport = watchlistHealthReport,
+            portfolioStressReport = portfolioStressReport,
+            portfolioHoldingReport = portfolioHoldingReport,
+            dailyBriefReport = dailyBriefReport
+        )
 
         val reviewData = ReviewData(
             date = today,
@@ -138,7 +152,8 @@ class ReviewViewModel : ViewModel() {
             watchlistHealthReport = watchlistHealthReport,
             portfolioStressReport = portfolioStressReport,
             dailyResearchBriefReport = dailyBriefReport,
-            portfolioHoldingReport = portfolioHoldingReport
+            portfolioHoldingReport = portfolioHoldingReport,
+            researchPlanReport = researchPlanReport
         )
         _reviewData.value = reviewData
         _reviewStatus.value = if (usingFallback) {

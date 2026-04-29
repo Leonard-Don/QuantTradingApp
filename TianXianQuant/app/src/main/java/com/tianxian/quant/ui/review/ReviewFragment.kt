@@ -1,5 +1,6 @@
 package com.tianxian.quant.ui.review
 
+import android.content.ClipData
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +17,7 @@ import com.tianxian.quant.model.DailyResearchBriefReport
 import com.tianxian.quant.model.PortfolioHolding
 import com.tianxian.quant.model.PortfolioHoldingReport
 import com.tianxian.quant.model.PortfolioStressReport
+import com.tianxian.quant.model.ResearchPlanReport
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
 import com.tianxian.quant.model.StockInfo
@@ -55,7 +57,7 @@ class ReviewFragment : Fragment() {
     }
 
     private fun setupTabs() {
-        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检", "持仓组合", "压力测试", "研究简报")
+        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检", "持仓组合", "压力测试", "研究简报", "研究计划")
         tabs.forEach { tab ->
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText(tab))
         }
@@ -146,6 +148,10 @@ class ReviewFragment : Fragment() {
         }
         if (currentTab == 8) {
             renderDailyBriefTab()
+            return
+        }
+        if (currentTab == 9) {
+            renderResearchPlanTab()
             return
         }
 
@@ -557,6 +563,58 @@ class ReviewFragment : Fragment() {
             "风险提醒：\n$risks\n\n" +
             "研究动作：\n$actions\n\n" +
             "说明：每日简报只做复盘整理和研究记录，不构成投资建议或交易指令。"
+    }
+
+    private fun renderResearchPlanTab() {
+        binding.tvReviewSectionTitle.text = getString(R.string.review_research_plan_title)
+        if (!isVipActive) {
+            binding.tvHotSectors.text = getString(R.string.review_research_plan_locked)
+            binding.btnReviewAction.visibility = View.VISIBLE
+            binding.btnReviewAction.text = getString(R.string.review_open_vip)
+            binding.btnReviewAction.setOnClickListener {
+                startActivity(VipActivity.createIntent(requireContext(), finishOnSuccess = true))
+            }
+            return
+        }
+
+        val report = currentReviewData?.researchPlanReport
+        binding.btnReviewAction.visibility = View.VISIBLE
+        binding.btnReviewAction.text = getString(R.string.review_copy_research_plan)
+        binding.btnReviewAction.setOnClickListener {
+            if (report == null) {
+                Toast.makeText(requireContext(), "研究计划仍在生成中", Toast.LENGTH_SHORT).show()
+            } else {
+                copyResearchPlan(report)
+            }
+        }
+
+        binding.tvHotSectors.text = if (report == null) {
+            "正在编排今日研究计划。"
+        } else {
+            buildResearchPlanText(report)
+        }
+    }
+
+    private fun buildResearchPlanText(report: ResearchPlanReport): String {
+        val tasks = report.planItems.joinToString("\n\n") {
+            "· [${it.priority}] ${it.title}（${it.source}）\n  ${it.detail}"
+        }
+        val risks = report.riskReviewItems.joinToString("\n") { "· $it" }
+        val checklist = report.trackingChecklist.joinToString("\n") { "· $it" }
+
+        return "计划评分：${report.score}/100（${report.grade}）\n" +
+            "${report.headline}\n\n" +
+            "今日主线：\n${report.dailyFocus}\n\n" +
+            "研究任务：\n$tasks\n\n" +
+            "风险复查：\n$risks\n\n" +
+            "跟踪清单：\n$checklist\n\n" +
+            "说明：研究计划用于复盘流程管理，不构成投资建议或交易指令。"
+    }
+
+    private fun copyResearchPlan(report: ResearchPlanReport) {
+        val clipboard = requireContext().getSystemService(android.content.ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(ClipData.newPlainText("天线量化研究计划", report.exportText))
+        Toast.makeText(requireContext(), getString(R.string.review_research_plan_copied), Toast.LENGTH_SHORT).show()
     }
 
     private fun buildHistorySummary(history: List<ReviewSnapshot>): String {

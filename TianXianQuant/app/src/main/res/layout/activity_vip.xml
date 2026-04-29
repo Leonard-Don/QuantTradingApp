@@ -271,6 +271,16 @@
                         app:drawableStartCompat="@drawable/ic_check_small"
                         android:drawablePadding="6dp" />
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/vip_normal_feat_7"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        app:drawableStartCompat="@drawable/ic_check_small"
+                        android:drawablePadding="6dp" />
+
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
