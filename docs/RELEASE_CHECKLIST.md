@@ -11,6 +11,8 @@
 
 ## Store Test Release
 
+- [x] Backend contract scaffold covered by local pytest.
+- [x] Release APK/AAB artifact script exists.
 - [ ] Configure signing properties outside git.
 - [ ] Build signed AAB.
 - [ ] Prepare app icon, screenshots, feature graphic, short description, and full description.
@@ -19,12 +21,14 @@
 - [ ] Add data-source disclaimer.
 - [ ] Validate notification permission copy.
 - [ ] Validate account deletion/support contact path.
+- [ ] Wire Android account deletion UI to `DELETE /v1/me`.
 - [ ] Confirm target SDK policy before upload.
 
 ## Paid Launch
 
 - [ ] Server account system live.
 - [ ] Server entitlement API live.
+- [ ] Android auth/VIP flows integrated with server account and entitlement APIs.
 - [ ] WeChat/Alipay merchant sandbox verified.
 - [ ] Backend payment callback verification live.
 - [ ] Refund/cancel policy implemented.
@@ -52,4 +56,8 @@ cd TianXianQuant
 scripts/verify_p0.sh
 scripts/verify_emulator_smoke.sh
 scripts/build_release_artifacts.sh
+
+# from repository root
+scripts/verify_backend.sh
+scripts/verify_all.sh
 ```

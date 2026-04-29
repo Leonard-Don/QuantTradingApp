@@ -116,7 +116,7 @@ TianXianQuant/
 ## 当前工程状态
 
 - 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；实时源不可用时优先展示最近本机行情缓存，并明确标注缓存时间。
-- 登录、社区、VIP 到期时间均为本机 Room 状态，仅适合 Demo/MVP 验证，不具备商业级账号与权益防篡改能力。
+- Android 端登录、社区、VIP 到期时间仍为本机 Room 状态；仓库已包含本地 FastAPI 后端骨架，用于账号、订单、权益、支付回调和高级数据代理的下一步接入。
 - Debug 可本地模拟支付开通；Release 中 `ALLOW_LOCAL_PAYMENT_SIMULATION=false`，不会直接开通 VIP。
 - Release 已开启 R8 混淆与资源压缩，但正式上架仍需要签名、AAB、真实支付/账号服务与隐私合规材料。
 
@@ -126,6 +126,10 @@ TianXianQuant/
 cd TianXianQuant
 scripts/verify_p0.sh
 scripts/verify_emulator_smoke.sh
+
+# 仓库根目录
+scripts/verify_backend.sh
+scripts/verify_all.sh
 ```
 
 ## 商业化与发布资料
@@ -140,8 +144,8 @@ scripts/verify_emulator_smoke.sh
 
 ## 下一步开发
 
-1. 接入服务端账号与 VIP 权益校验，替换纯本机账号/VIP 状态。
-2. 接入正式支付服务端与微信/支付宝回调闭环。
-3. 准备 Release 签名、AAB、隐私政策、用户协议与应用商店材料。
+1. 将 Android 登录、订阅和权益刷新接入 `backend/`，替换纯本机账号/VIP 状态。
+2. 接入正式微信/支付宝或 Google Play Billing 商户配置，替换 sandbox 回调。
+3. 配置 Release 签名、AAB 上传、隐私政策 URL、用户协议 URL 和应用商店材料。
 4. 扩展 Repository/ViewModel 测试覆盖，补充真实异常路径与权益边界测试。
-5. 在授权前提下扩展正式行情/板块/资金数据源。
+5. 签约授权数据源后，把 `backend/` 高级数据代理从 `not_configured` 切换为真实供应商响应。

@@ -52,6 +52,14 @@ The backend should:
 - Rate-limit by user, device, and endpoint.
 - Log provider failures for diagnosis.
 
+Current scaffold:
+
+- `GET /v1/market/capital-flow`
+- `GET /v1/market/dragon-list`
+- `GET /v1/market/fundamentals`
+
+These routes are VIP-gated and return an explicit `not_configured` response until provider credentials and license terms are configured. This keeps the Android UI and backend contract ready without inventing fake premium fields.
+
 ## Android UX Rules
 
 - Always show source and stale/cache state.

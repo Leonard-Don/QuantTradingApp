@@ -30,10 +30,10 @@ This keeps the Android UI flow testable without pretending real money collection
 
 ## Backend Tasks
 
-- Order table with immutable amount, tier, duration, channel, and status.
-- Payment callback table with raw payload hash and provider transaction ID.
-- Idempotent entitlement activation.
-- Refund/cancel event handling.
+- Order table with immutable amount, tier, duration, channel, and status. `[scaffolded]`
+- Payment callback table with provider transaction ID and audit detail. `[scaffolded]`
+- Idempotent entitlement activation. `[scaffolded]`
+- Refund/cancel event handling. `[scaffolded]`
 - Admin audit view for order and entitlement changes.
 
 ## Test Matrix
@@ -48,6 +48,15 @@ This keeps the Android UI flow testable without pretending real money collection
 | Refund | Entitlement reduced or marked revoked according to policy |
 | Offline after payment | App keeps pending state until entitlement refresh succeeds |
 
+Current scaffold coverage:
+
+- Duplicate `PAID` callback for the same order is idempotent.
+- Duplicate provider transaction ID on another order is rejected.
+- Amount and channel mismatch are rejected.
+- Optional HMAC callback signature can be required with `TIANXIAN_REQUIRE_CALLBACK_SIGNATURE=1`.
+- `REFUNDED` subtracts the paid duration from the entitlement snapshot; if the resulting time is already expired, it revokes to `0`.
+- `CANCELLED` can close a pending order without activating entitlement.
+
 ## Release Gate
 
 Paid release is blocked until:
@@ -57,3 +66,5 @@ Paid release is blocked until:
 - Entitlement API is integrated.
 - App release build cannot trigger local VIP activation.
 - Privacy policy and subscription rules mention renewal/refund behavior.
+- Android app calls backend order/entitlement endpoints instead of local Room as source of truth.
+- Production merchant native signatures replace the scaffold HMAC.

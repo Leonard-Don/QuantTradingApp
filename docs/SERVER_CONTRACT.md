@@ -83,6 +83,18 @@ App behavior:
 - Persist the latest verified entitlement with `lastVerifiedAt`.
 - If offline, allow cached entitlement only inside the grace window.
 
+### DELETE `/v1/me`
+
+Deletes the account and server-side rows for sessions, entitlements, orders, and callback audit records.
+
+Response:
+
+```json
+{
+  "status": "deleted"
+}
+```
+
 ## Orders
 
 ### POST `/v1/orders`
@@ -143,13 +155,30 @@ Response:
 
 Handled by the backend only. The app must not call this endpoint.
 
+Sandbox request shape:
+
+```json
+{
+  "orderId": "ord_123",
+  "providerTransactionId": "provider_tx_123",
+  "amountCents": 6800,
+  "eventType": "PAID",
+  "sandboxApproved": true,
+  "signature": "optional-hmac"
+}
+```
+
 Backend requirements:
 
 - Verify merchant signature.
+- Reject channel or amount mismatch.
 - Ensure idempotency by provider transaction ID.
 - Match amount, currency, channel, and order ID.
 - Activate entitlement only after verified payment.
+- Persist callback audit events.
 - Persist audit events for paid, refunded, chargeback, and cancelled states.
+
+Current local backend scaffold supports sandbox `PAID`, `REFUNDED`, and `CANCELLED` events, optional HMAC via `TIANXIAN_PAYMENT_CALLBACK_SECRET`, duplicate provider transaction rejection, and callback audit rows. Production WeChat/Alipay native signature verification is still a merchant-credential task.
 
 ## Data Provider Proxy
 
@@ -160,6 +189,8 @@ Examples:
 - GET `/v1/market/capital-flow?codes=600519,300750`
 - GET `/v1/market/dragon-list?date=2026-04-29`
 - GET `/v1/market/fundamentals?codes=600519,300750`
+
+These endpoints require an active VIP entitlement. Until a licensed provider is configured, the local scaffold returns `status = "not_configured"` with an empty `data` array instead of generating fake premium data.
 
 Each response must include:
 

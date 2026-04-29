@@ -17,21 +17,43 @@ cd backend
 python3 -m pytest
 ```
 
+From the repository root:
+
+```bash
+scripts/verify_backend.sh
+```
+
 ## Implemented
 
 - `POST /v1/auth/register`
 - `POST /v1/auth/login`
 - `POST /v1/auth/refresh`
 - `GET /v1/me/entitlements`
+- `DELETE /v1/me`
 - `POST /v1/orders`
 - `GET /v1/orders/{orderId}`
 - `POST /v1/payment/callbacks/{channel}`
+- `GET /v1/market/capital-flow`
+- `GET /v1/market/dragon-list`
+- `GET /v1/market/fundamentals`
+
+## Commercial Hardening Included
+
+- Phone/password/device input validation.
+- PBKDF2 password hashing with per-user salt.
+- Access/refresh token records scoped by device.
+- Callback amount/channel checks.
+- Optional HMAC callback signature via `TIANXIAN_PAYMENT_CALLBACK_SECRET`.
+- Idempotent paid/refund/cancel callbacks.
+- Duplicate provider transaction rejection.
+- Payment callback audit table.
+- Account deletion endpoint for app-store compliance planning.
+- VIP-gated premium data proxy endpoints that return an explicit `not_configured` contract until a licensed provider is connected.
 
 ## Not Production Ready
 
-- Payment callback is sandbox-only and does not verify WeChat/Alipay signatures yet.
-- Password hashing is a scaffold and should be replaced with a stronger password hashing library before production.
+- Payment callback is still sandbox-only and does not verify native WeChat/Alipay signatures yet.
 - Tokens are opaque local records, not a hardened identity platform.
-- No admin console, monitoring, refund workflow, or licensed data-provider proxy is included yet.
+- No admin console, monitoring, invoice flow, production refund policy, or licensed data-provider credentials are included yet.
 
 See `../docs/SERVER_CONTRACT.md` and `../docs/PAYMENT_INTEGRATION.md` for the production contract and launch gates.

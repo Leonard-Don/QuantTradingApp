@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import os
 import secrets
 import sqlite3
@@ -15,24 +16,25 @@ from pydantic import BaseModel, Field
 DAY_MILLIS = 24 * 60 * 60 * 1000
 ACCESS_TOKEN_TTL_MILLIS = 2 * 60 * 60 * 1000
 GRACE_MILLIS = 7 * DAY_MILLIS
+DEFAULT_DB_PATH = Path(__file__).resolve().parents[1] / "data" / "tianxian.db"
 
 
 class RegisterRequest(BaseModel):
     displayName: str = "本机用户"
-    phone: str
-    password: str
-    deviceId: str
+    phone: str = Field(pattern=r"^\d{11}$")
+    password: str = Field(min_length=6, max_length=128)
+    deviceId: str = Field(min_length=3, max_length=128)
 
 
 class LoginRequest(BaseModel):
-    phone: str
-    password: str
-    deviceId: str
+    phone: str = Field(pattern=r"^\d{11}$")
+    password: str = Field(min_length=6, max_length=128)
+    deviceId: str = Field(min_length=3, max_length=128)
 
 
 class RefreshRequest(BaseModel):
-    refreshToken: str
-    deviceId: str
+    refreshToken: str = Field(min_length=8)
+    deviceId: str = Field(min_length=3, max_length=128)
 
 
 class AuthResponse(BaseModel):
@@ -89,6 +91,8 @@ class PaymentCallbackRequest(BaseModel):
     providerTransactionId: str
     amountCents: int
     sandboxApproved: bool = True
+    eventType: str = Field(default="PAID", pattern="^(PAID|REFUNDED|CANCELLED)$")
+    signature: Optional[str] = None
 
 
 class PaymentCallbackResponse(BaseModel):
@@ -96,6 +100,15 @@ class PaymentCallbackResponse(BaseModel):
     status: str
     stockVipExpireTime: int
     quantVipExpireTime: int
+
+
+class MarketProxyResponse(BaseModel):
+    source: str
+    sourceUpdatedAt: int
+    status: str
+    data: list[dict]
+    disclaimer: str
+    message: str
 
 
 class BackendStore:
@@ -153,6 +166,18 @@ class BackendStore:
                     created_at INTEGER NOT NULL,
                     paid_at INTEGER
                 );
+
+                CREATE TABLE IF NOT EXISTS payment_callbacks (
+                    id TEXT PRIMARY KEY,
+                    order_id TEXT NOT NULL,
+                    channel TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    provider_transaction_id TEXT NOT NULL,
+                    amount_cents INTEGER NOT NULL,
+                    accepted INTEGER NOT NULL,
+                    detail TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
                 """
             )
 
@@ -207,6 +232,18 @@ class BackendStore:
             raise HTTPException(status_code=401, detail="invalid refresh token")
         return self.create_session(session["user_id"], device_id)
 
+    def delete_user(self, user_id: str) -> dict[str, str]:
+        with self.connect() as conn:
+            conn.execute(
+                "DELETE FROM payment_callbacks WHERE order_id IN (SELECT order_id FROM orders WHERE user_id = ?)",
+                (user_id,),
+            )
+            conn.execute("DELETE FROM orders WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM entitlements WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        return {"status": "deleted"}
+
     def require_user(self, authorization: Optional[str]) -> str:
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="missing bearer token")
@@ -235,6 +272,17 @@ class BackendStore:
             graceUntil=latest_expiry + GRACE_MILLIS if latest_expiry > 0 else 0,
             source=row["source"],
         )
+
+    def require_active_vip(self, user_id: str) -> EntitlementResponse:
+        entitlement = self.entitlements(user_id)
+        active_until = max(
+            entitlement.stockVipExpireTime,
+            entitlement.quantVipExpireTime,
+            entitlement.graceUntil,
+        )
+        if entitlement.serverTime >= active_until:
+            raise HTTPException(status_code=403, detail="active vip required")
+        return entitlement
 
     def create_order(self, user_id: str, request: OrderRequest) -> OrderResponse:
         order_id = f"ord_{uuid.uuid4().hex}"
@@ -310,39 +358,64 @@ class BackendStore:
                 raise HTTPException(status_code=400, detail="payment channel mismatch")
             if order["amount_cents"] != request.amountCents:
                 raise HTTPException(status_code=400, detail="payment amount mismatch")
-            if order["status"] == "PAID":
-                current = self.entitlements(order["user_id"])
-                return PaymentCallbackResponse(
-                    orderId=request.orderId,
-                    status="PAID",
-                    stockVipExpireTime=current.stockVipExpireTime,
-                    quantVipExpireTime=current.quantVipExpireTime,
-                )
+            verify_callback_signature(request)
 
-            paid_at = now_millis()
-            current = conn.execute(
-                "SELECT * FROM entitlements WHERE user_id = ?",
-                (order["user_id"],),
-            ).fetchone()
-            stock_expiry, quant_expiry = extend_entitlement(
-                tier=order["tier"],
-                days=order["duration_days"],
-                now=paid_at,
-                stock_expiry=current["stock_vip_expire_time"],
-                quant_expiry=current["quant_vip_expire_time"],
+            if request.eventType == "PAID":
+                return self._mark_order_paid(conn, order, request)
+            if request.eventType in {"REFUNDED", "CANCELLED"}:
+                return self._mark_order_reversed(conn, order, request)
+            raise HTTPException(status_code=400, detail="unsupported payment event")
+
+    def _mark_order_paid(
+        self,
+        conn: sqlite3.Connection,
+        order: sqlite3.Row,
+        request: PaymentCallbackRequest,
+    ) -> PaymentCallbackResponse:
+        if order["status"] == "PAID":
+            current = self.entitlements(order["user_id"])
+            self._record_callback(conn, request, order["channel"], accepted=True, detail="idempotent paid callback")
+            return PaymentCallbackResponse(
+                orderId=request.orderId,
+                status="PAID",
+                stockVipExpireTime=current.stockVipExpireTime,
+                quantVipExpireTime=current.quantVipExpireTime,
             )
-            conn.execute(
-                """
-                UPDATE entitlements
-                SET stock_vip_expire_time = ?, quant_vip_expire_time = ?, source = 'payment_order', updated_at = ?
-                WHERE user_id = ?
-                """,
-                (stock_expiry, quant_expiry, paid_at, order["user_id"]),
-            )
-            conn.execute(
-                "UPDATE orders SET status = 'PAID', provider_transaction_id = ?, paid_at = ? WHERE order_id = ?",
-                (request.providerTransactionId, paid_at, request.orderId),
-            )
+        if order["status"] in {"REFUNDED", "CANCELLED"}:
+            raise HTTPException(status_code=400, detail="order already reversed")
+
+        duplicate_tx = conn.execute(
+            "SELECT order_id FROM orders WHERE provider_transaction_id = ? AND order_id != ?",
+            (request.providerTransactionId, request.orderId),
+        ).fetchone()
+        if duplicate_tx is not None:
+            raise HTTPException(status_code=409, detail="duplicate provider transaction id")
+
+        paid_at = now_millis()
+        current = conn.execute(
+            "SELECT * FROM entitlements WHERE user_id = ?",
+            (order["user_id"],),
+        ).fetchone()
+        stock_expiry, quant_expiry = extend_entitlement(
+            tier=order["tier"],
+            days=order["duration_days"],
+            now=paid_at,
+            stock_expiry=current["stock_vip_expire_time"],
+            quant_expiry=current["quant_vip_expire_time"],
+        )
+        conn.execute(
+            """
+            UPDATE entitlements
+            SET stock_vip_expire_time = ?, quant_vip_expire_time = ?, source = 'payment_order', updated_at = ?
+            WHERE user_id = ?
+            """,
+            (stock_expiry, quant_expiry, paid_at, order["user_id"]),
+        )
+        conn.execute(
+            "UPDATE orders SET status = 'PAID', provider_transaction_id = ?, paid_at = ? WHERE order_id = ?",
+            (request.providerTransactionId, paid_at, request.orderId),
+        )
+        self._record_callback(conn, request, order["channel"], accepted=True, detail="paid")
         return PaymentCallbackResponse(
             orderId=request.orderId,
             status="PAID",
@@ -350,9 +423,114 @@ class BackendStore:
             quantVipExpireTime=quant_expiry,
         )
 
+    def _mark_order_reversed(
+        self,
+        conn: sqlite3.Connection,
+        order: sqlite3.Row,
+        request: PaymentCallbackRequest,
+    ) -> PaymentCallbackResponse:
+        if order["status"] == request.eventType:
+            current = self.entitlements(order["user_id"])
+            self._record_callback(
+                conn,
+                request,
+                order["channel"],
+                accepted=True,
+                detail=f"idempotent {request.eventType.lower()} callback",
+            )
+            return PaymentCallbackResponse(
+                orderId=request.orderId,
+                status=request.eventType,
+                stockVipExpireTime=current.stockVipExpireTime,
+                quantVipExpireTime=current.quantVipExpireTime,
+            )
+        if order["status"] == "PENDING" and request.eventType == "CANCELLED":
+            conn.execute(
+                "UPDATE orders SET status = 'CANCELLED', provider_transaction_id = ? WHERE order_id = ?",
+                (request.providerTransactionId, request.orderId),
+            )
+            current = self.entitlements(order["user_id"])
+            self._record_callback(conn, request, order["channel"], accepted=True, detail="pending order cancelled")
+            return PaymentCallbackResponse(
+                orderId=request.orderId,
+                status="CANCELLED",
+                stockVipExpireTime=current.stockVipExpireTime,
+                quantVipExpireTime=current.quantVipExpireTime,
+            )
+        if order["status"] != "PAID":
+            raise HTTPException(status_code=400, detail="order is not paid")
+
+        current = conn.execute(
+            "SELECT * FROM entitlements WHERE user_id = ?",
+            (order["user_id"],),
+        ).fetchone()
+        stock_expiry, quant_expiry = reduce_entitlement(
+            tier=order["tier"],
+            days=order["duration_days"],
+            stock_expiry=current["stock_vip_expire_time"],
+            quant_expiry=current["quant_vip_expire_time"],
+        )
+        now = now_millis()
+        conn.execute(
+            """
+            UPDATE entitlements
+            SET stock_vip_expire_time = ?, quant_vip_expire_time = ?, source = ?, updated_at = ?
+            WHERE user_id = ?
+            """,
+            (stock_expiry, quant_expiry, request.eventType.lower(), now, order["user_id"]),
+        )
+        conn.execute(
+            "UPDATE orders SET status = ?, provider_transaction_id = ? WHERE order_id = ?",
+            (request.eventType, request.providerTransactionId, request.orderId),
+        )
+        self._record_callback(conn, request, order["channel"], accepted=True, detail=request.eventType.lower())
+        return PaymentCallbackResponse(
+            orderId=request.orderId,
+            status=request.eventType,
+            stockVipExpireTime=stock_expiry,
+            quantVipExpireTime=quant_expiry,
+        )
+
+    def _record_callback(
+        self,
+        conn: sqlite3.Connection,
+        request: PaymentCallbackRequest,
+        channel: str,
+        accepted: bool,
+        detail: str,
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO payment_callbacks(id, order_id, channel, event_type, provider_transaction_id,
+            amount_cents, accepted, detail, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                f"pcb_{uuid.uuid4().hex}",
+                request.orderId,
+                channel,
+                request.eventType,
+                request.providerTransactionId,
+                request.amountCents,
+                1 if accepted else 0,
+                detail,
+                now_millis(),
+            ),
+        )
+
+    def market_proxy_not_configured(self, endpoint: str) -> MarketProxyResponse:
+        return MarketProxyResponse(
+            source="licensed-provider-not-configured",
+            sourceUpdatedAt=now_millis(),
+            status="not_configured",
+            data=[],
+            disclaimer="研究参考，不构成投资建议。正式付费版本需接入授权数据源后展示。",
+            message=f"{endpoint} requires a licensed market-data provider and backend proxy credentials.",
+        )
+
 
 def create_app(db_path: Optional[str] = None) -> FastAPI:
-    resolved_db_path = db_path or os.getenv("TIANXIAN_DB_PATH", "backend/data/tianxian.db")
+    resolved_db_path = db_path or os.getenv("TIANXIAN_DB_PATH", str(DEFAULT_DB_PATH))
     store = BackendStore(resolved_db_path)
     app = FastAPI(title="TianXianQuant Backend", version="0.1.0")
 
@@ -379,6 +557,10 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
     def entitlements(user_id: str = Depends(current_user)) -> EntitlementResponse:
         return store.entitlements(user_id)
 
+    @app.delete("/v1/me")
+    def delete_me(user_id: str = Depends(current_user)) -> dict[str, str]:
+        return store.delete_user(user_id)
+
     @app.post("/v1/orders", response_model=OrderResponse)
     def create_order(request: OrderRequest, user_id: str = Depends(current_user)) -> OrderResponse:
         return store.create_order(user_id, request)
@@ -394,6 +576,21 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="unknown payment channel")
         return store.sandbox_payment_callback(normalized_channel, request)
 
+    @app.get("/v1/market/capital-flow", response_model=MarketProxyResponse)
+    def capital_flow(codes: str, user_id: str = Depends(current_user)) -> MarketProxyResponse:
+        store.require_active_vip(user_id)
+        return store.market_proxy_not_configured(f"capital-flow:{codes}")
+
+    @app.get("/v1/market/dragon-list", response_model=MarketProxyResponse)
+    def dragon_list(date: str, user_id: str = Depends(current_user)) -> MarketProxyResponse:
+        store.require_active_vip(user_id)
+        return store.market_proxy_not_configured(f"dragon-list:{date}")
+
+    @app.get("/v1/market/fundamentals", response_model=MarketProxyResponse)
+    def fundamentals(codes: str, user_id: str = Depends(current_user)) -> MarketProxyResponse:
+        store.require_active_vip(user_id)
+        return store.market_proxy_not_configured(f"fundamentals:{codes}")
+
     return app
 
 
@@ -402,7 +599,25 @@ def now_millis() -> int:
 
 
 def hash_password(password: str, salt: str) -> str:
-    return hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+    return hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        120_000,
+    ).hex()
+
+
+def verify_callback_signature(request: PaymentCallbackRequest) -> None:
+    secret = os.getenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "")
+    require_signature = os.getenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "0") == "1"
+    if not secret:
+        if require_signature:
+            raise HTTPException(status_code=401, detail="payment callback secret is not configured")
+        return
+    message = f"{request.orderId}:{request.providerTransactionId}:{request.amountCents}:{request.eventType}"
+    expected = hmac.new(secret.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not request.signature or not hmac.compare_digest(expected, request.signature):
+        raise HTTPException(status_code=401, detail="invalid payment callback signature")
 
 
 def price_for(tier: str, duration_days: int) -> int:
@@ -437,6 +652,27 @@ def extend_entitlement(
         return stock_expiry, extend_one(quant_expiry)
     if tier == "FULL":
         return extend_one(stock_expiry), extend_one(quant_expiry)
+    raise HTTPException(status_code=400, detail="unknown tier")
+
+
+def reduce_entitlement(
+    tier: str,
+    days: int,
+    stock_expiry: int,
+    quant_expiry: int,
+) -> tuple[int, int]:
+    duration = days * DAY_MILLIS
+
+    def reduce_one(current_expiry: int) -> int:
+        reduced = current_expiry - duration
+        return reduced if reduced > now_millis() else 0
+
+    if tier == "STOCK":
+        return reduce_one(stock_expiry), quant_expiry
+    if tier == "QUANT":
+        return stock_expiry, reduce_one(quant_expiry)
+    if tier == "FULL":
+        return reduce_one(stock_expiry), reduce_one(quant_expiry)
     raise HTTPException(status_code=400, detail="unknown tier")
 
 
