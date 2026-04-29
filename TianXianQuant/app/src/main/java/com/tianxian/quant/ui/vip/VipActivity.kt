@@ -105,7 +105,7 @@ class VipActivity : AppCompatActivity() {
 
     private fun refreshAccountCard() {
         lifecycleScope.launch {
-            val state = LocalStateRepository.getUserState()
+            val state = LocalStateRepository.refreshBackendEntitlements()
             val now = System.currentTimeMillis()
             val loginText = if (state.isLoggedIn) {
                 "${state.displayName} · 已登录"
@@ -114,8 +114,9 @@ class VipActivity : AppCompatActivity() {
             }
             binding.tvAccountSummary.text = loginText
             binding.tvEntitlementDetail.text = buildString {
-                append("选股 VIP：${formatVipStatus(state.stockVipExpireTime, now)}\n")
-                append("量化 VIP：${formatVipStatus(state.quantVipExpireTime, now)}")
+                append("选股 VIP：${formatVipStatus(state.stockVipExpireTime, state.backendGraceUntil, now)}\n")
+                append("量化 VIP：${formatVipStatus(state.quantVipExpireTime, state.backendGraceUntil, now)}\n")
+                append("同步状态：${state.backendSyncStatus}")
             }
             binding.btnAccount.text = if (state.isLoggedIn) "账号" else "登录/注册"
         }
@@ -167,7 +168,9 @@ class VipActivity : AppCompatActivity() {
     }
 
     private fun showPaymentChannelDialog(tier: VipTier, price: String, days: Int) {
-        val paymentNote = if (BuildConfig.ALLOW_LOCAL_PAYMENT_SIMULATION) {
+        val paymentNote = if (BuildConfig.ENABLE_BACKEND_ACCOUNT_SYNC && BuildConfig.ALLOW_LOCAL_PAYMENT_SIMULATION) {
+            "当前为后端联调验收构建，会优先创建服务端沙盒订单并同步权益；服务端不可用时回退本机演示。"
+        } else if (BuildConfig.ALLOW_LOCAL_PAYMENT_SIMULATION) {
             "当前为验收构建，会使用本地模拟支付完成订阅。正式扣款仍需要配置微信/支付宝商户参数和服务端订单校验。"
         } else {
             "当前正式构建不会直接开通 VIP。微信/支付宝扣款需要商户参数、签名和服务端订单校验接入完成后启用。"
@@ -215,7 +218,7 @@ class VipActivity : AppCompatActivity() {
     }
 
     private suspend fun activateVipAfterPayment(order: SubscriptionOrder) {
-        val state = LocalStateRepository.activateVip(order.tier, order.durationDays)
+        val state = LocalStateRepository.activateVip(order.tier, order.durationDays, order.channel)
         val dateText = formatDate(
             when (order.tier) {
                 VipTier.STOCK -> state.stockVipExpireTime
@@ -226,7 +229,11 @@ class VipActivity : AppCompatActivity() {
         refreshAccountCard()
         android.app.AlertDialog.Builder(this@VipActivity)
             .setTitle("订阅已生效")
-            .setMessage("${order.channel.label} 验收支付完成。\n${order.tier.displayName} 已开通/续期，有效期至：$dateText")
+            .setMessage(
+                "${order.channel.label} 验收支付完成。\n" +
+                    "${order.tier.displayName} 已开通/续期，有效期至：$dateText\n" +
+                    "同步状态：${state.backendSyncStatus}"
+            )
             .setPositiveButton(if (finishOnSuccess) "返回使用" else "知道了") { _, _ ->
                 if (finishOnSuccess) {
                     setResult(Activity.RESULT_OK)
@@ -240,7 +247,10 @@ class VipActivity : AppCompatActivity() {
         return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(timeMillis))
     }
 
-    private fun formatVipStatus(expireTime: Long, now: Long): String {
+    private fun formatVipStatus(expireTime: Long, graceUntil: Long, now: Long): String {
+        if (expireTime <= now && expireTime > 0L && graceUntil > now) {
+            return "宽限期至 ${formatDate(graceUntil)}"
+        }
         if (expireTime <= now) return "未开通"
         val days = ((expireTime - now) + DAY_MILLIS - 1) / DAY_MILLIS
         return "已开通，剩余 ${days} 天（至 ${formatDate(expireTime)}）"

@@ -14,14 +14,14 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 | Emulator smoke flow | Passing through `TianXianQuant/scripts/verify_emulator_smoke.sh` | Go for internal testing |
 | Subscription value surfaces | Implemented as local research tools | Go for MVP validation |
 | Real payments | Backend sandbox order/callback scaffold exists; merchant callbacks not connected | No-go for paid launch |
-| Server-side entitlement | Backend source-of-truth scaffold exists; Android still uses local Room | No-go for paid launch |
+| Server-side entitlement | Backend source-of-truth scaffold exists; Android has a build-flagged sync path but production API is not deployed | No-go for paid launch |
 | Market data authorization | Public/free sources only | No-go for premium data claims |
 | Privacy/legal artifacts | Drafts only | No-go for store submission |
 | Release signing/AAB | Not configured | No-go for store submission |
 
 ## Must Finish Before Paid Launch
 
-1. Connect Android auth/VIP flows to the backend scaffold and stop treating Room as the source of truth.
+1. Deploy the backend scaffold, enable Android backend sync for QA/Release builds, and stop treating Room as the production source of truth.
 2. Replace sandbox callback with production WeChat/Alipay or Google Play Billing verification.
 3. Deploy server-side VIP entitlement source of truth with app-side cached entitlement and grace period.
 4. Add merchant SDK integration, callback verification, refund/cancel policy, and admin audit workflow.
@@ -35,6 +35,7 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 - Local watchlist, stock diagnosis, watchlist health, review history, quant diagnosis, community digest.
 - Debug-only local payment simulation.
 - Local backend scaffold for accounts, orders, sandbox callbacks, entitlement, account deletion, and premium data proxy contracts.
+- Build-flagged Android backend sync for login, entitlement refresh, and Debug sandbox subscription verification.
 - Repeatable local verification scripts and GitHub Actions P0 workflow.
 
 ## Risk Notes

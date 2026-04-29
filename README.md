@@ -69,7 +69,7 @@ TianXianQuant/
 │   │   ├── MyApp.kt
 │   │   ├── data/                 # Room 实体、DAO、迁移与本机状态仓库
 │   │   ├── model/                # 数据模型与纯 Kotlin 策略/校验策略
-│   │   ├── network/              # 腾讯公开行情接入与错误结果封装
+│   │   ├── network/              # 多源行情、后端账号/权益同步客户端与错误结果封装
 │   │   ├── payment/              # 支付网关边界；Release 禁用本地模拟开通
 │   │   ├── receiver/             # 每日研究提醒
 │   │   ├── util/                 # 常量与通知辅助
@@ -116,7 +116,8 @@ TianXianQuant/
 ## 当前工程状态
 
 - 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；实时源不可用时优先展示最近本机行情缓存，并明确标注缓存时间。
-- Android 端登录、社区、VIP 到期时间仍为本机 Room 状态；仓库已包含本地 FastAPI 后端骨架，用于账号、订单、权益、支付回调和高级数据代理的下一步接入。
+- Android 端登录、社区、VIP 到期时间默认保留本机 Room 演示状态；构建时可通过 `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/` 开启后端账号、权益和 Debug 沙盒订单同步。
+- 仓库已包含本地 FastAPI 后端骨架，用于账号、订单、权益、支付回调和高级数据代理接入。
 - Debug 可本地模拟支付开通；Release 中 `ALLOW_LOCAL_PAYMENT_SIMULATION=false`，不会直接开通 VIP。
 - Release 已开启 R8 混淆与资源压缩，但正式上架仍需要签名、AAB、真实支付/账号服务与隐私合规材料。
 
@@ -130,6 +131,11 @@ scripts/verify_emulator_smoke.sh
 # 仓库根目录
 scripts/verify_backend.sh
 scripts/verify_all.sh
+
+# Android 端联调本地后端时
+./gradlew :app:assembleDebug \
+  -PtianxianBackendSyncEnabled=true \
+  -PtianxianApiBaseUrl=http://10.0.2.2:8080/
 ```
 
 ## 商业化与发布资料
@@ -144,7 +150,7 @@ scripts/verify_all.sh
 
 ## 下一步开发
 
-1. 将 Android 登录、订阅和权益刷新接入 `backend/`，替换纯本机账号/VIP 状态。
+1. 部署 `backend/`，在 QA/Release 构建中开启后端同步开关并补齐账号删除 UI。
 2. 接入正式微信/支付宝或 Google Play Billing 商户配置，替换 sandbox 回调。
 3. 配置 Release 签名、AAB 上传、隐私政策 URL、用户协议 URL 和应用商店材料。
 4. 扩展 Repository/ViewModel 测试覆盖，补充真实异常路径与权益边界测试。

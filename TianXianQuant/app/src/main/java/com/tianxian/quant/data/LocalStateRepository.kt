@@ -1,5 +1,6 @@
 package com.tianxian.quant.data
 
+import com.tianxian.quant.BuildConfig
 import com.tianxian.quant.model.Post
 import com.tianxian.quant.model.PostComment
 import com.tianxian.quant.model.PortfolioHolding
@@ -11,6 +12,10 @@ import com.tianxian.quant.model.StockInfo
 import com.tianxian.quant.model.VipExpiryPolicy
 import com.tianxian.quant.model.VipExpiryState
 import com.tianxian.quant.model.VipTier
+import com.tianxian.quant.network.BackendAccountSync
+import com.tianxian.quant.network.BackendEntitlementResponse
+import com.tianxian.quant.network.TianXianBackendRepository
+import com.tianxian.quant.payment.PaymentChannel
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
@@ -39,12 +44,16 @@ object LocalStateRepository {
 
     suspend fun isStockVipActive(): Boolean {
         val state = getUserState()
-        return isActive(state.stockVipExpireTime) || isLegacyVipActive(state)
+        return isActive(state.stockVipExpireTime) ||
+            isWithinBackendGrace(state, state.stockVipExpireTime) ||
+            isLegacyVipActive(state)
     }
 
     suspend fun isQuantVipActive(): Boolean {
         val state = getUserState()
-        return isActive(state.quantVipExpireTime) || isLegacyVipActive(state)
+        return isActive(state.quantVipExpireTime) ||
+            isWithinBackendGrace(state, state.quantVipExpireTime) ||
+            isLegacyVipActive(state)
     }
 
     suspend fun isLoggedIn(): Boolean {
@@ -54,30 +63,68 @@ object LocalStateRepository {
     suspend fun register(displayName: String, phone: String, password: String): UserStateEntity {
         val now = System.currentTimeMillis()
         val current = getUserState()
-        val updated = current.copy(
+        val backendSync = TianXianBackendRepository.register(displayName, phone, password)
+        val localState = current.copy(
             displayName = displayName.ifBlank { "本机用户" },
             phone = phone,
-            passwordHash = hashPassword(phone, password),
+            passwordHash = if (backendSync.success) null else hashPassword(phone, password),
             isLoggedIn = true,
             createdAt = if (current.createdAt == 0L) now else current.createdAt,
             lastLoginAt = now
         )
+        val updated = applyBackendSync(localState, backendSync)
         db.userStateDao().save(updated)
         return updated
     }
 
     suspend fun login(phone: String, password: String): Boolean {
         val state = getUserState()
+        val backendSync = TianXianBackendRepository.login(phone, password)
+        if (backendSync.success) {
+            val updated = applyBackendSync(
+                state.copy(
+                    phone = phone,
+                    passwordHash = null,
+                    isLoggedIn = true,
+                    lastLoginAt = System.currentTimeMillis()
+                ),
+                backendSync
+            )
+            db.userStateDao().save(updated)
+            return true
+        }
+
         val matched = state.phone == phone && state.passwordHash == hashPassword(phone, password)
         if (matched) {
-            db.userStateDao().save(state.copy(isLoggedIn = true, lastLoginAt = System.currentTimeMillis()))
+            db.userStateDao().save(
+                state.copy(
+                    isLoggedIn = true,
+                    lastLoginAt = System.currentTimeMillis(),
+                    backendSyncStatus = backendSync.message
+                )
+            )
+        } else if (backendSync.enabled) {
+            db.userStateDao().save(state.copy(backendSyncStatus = backendSync.message))
         }
         return matched
     }
 
     suspend fun logout() {
         val state = getUserState()
-        db.userStateDao().save(state.copy(isLoggedIn = false))
+        db.userStateDao().save(
+            state.copy(
+                isLoggedIn = false,
+                backendAccessToken = null,
+                backendRefreshToken = null,
+                backendTokenExpiresAt = 0L,
+                backendGraceUntil = 0L,
+                backendSyncStatus = if (TianXianBackendRepository.isEnabled) {
+                    "已退出服务端登录"
+                } else {
+                    state.backendSyncStatus
+                }
+            )
+        )
     }
 
     suspend fun setNotificationsEnabled(enabled: Boolean): UserStateEntity {
@@ -86,8 +133,40 @@ object LocalStateRepository {
         return state
     }
 
-    suspend fun activateVip(tier: VipTier, days: Int): UserStateEntity {
+    suspend fun refreshBackendEntitlements(): UserStateEntity {
         val state = getUserState()
+        if (!TianXianBackendRepository.isEnabled || !state.isLoggedIn || state.backendAccessToken.isNullOrBlank()) {
+            return state
+        }
+        val backendSync = TianXianBackendRepository.fetchEntitlements(state.backendAccessToken)
+        val updated = applyBackendSync(state, backendSync)
+        db.userStateDao().save(updated)
+        return updated
+    }
+
+    suspend fun activateVip(tier: VipTier, days: Int, channel: PaymentChannel? = null): UserStateEntity {
+        val state = getUserState()
+        val backendSync = if (channel != null) {
+            TianXianBackendRepository.activateSandboxSubscription(
+                accessToken = state.backendAccessToken,
+                tier = tier,
+                durationDays = days,
+                channel = channel
+            )
+        } else {
+            BackendAccountSync.disabled()
+        }
+        if (backendSync.success) {
+            val updated = applyBackendSync(state, backendSync)
+            db.userStateDao().save(updated)
+            return updated
+        }
+        if (!BuildConfig.ALLOW_LOCAL_PAYMENT_SIMULATION) {
+            val updated = state.copy(backendSyncStatus = backendSync.message)
+            db.userStateDao().save(updated)
+            return updated
+        }
+
         val now = System.currentTimeMillis()
         val expiryState = VipExpiryPolicy.extend(
             tier = tier,
@@ -104,7 +183,8 @@ object LocalStateRepository {
             isVip = expiryState.vipExpireTime > now,
             vipExpireTime = expiryState.vipExpireTime,
             stockVipExpireTime = expiryState.stockVipExpireTime,
-            quantVipExpireTime = expiryState.quantVipExpireTime
+            quantVipExpireTime = expiryState.quantVipExpireTime,
+            backendSyncStatus = if (backendSync.enabled) backendSync.message else state.backendSyncStatus
         )
         db.userStateDao().save(updated)
         return updated
@@ -461,6 +541,38 @@ object LocalStateRepository {
         )
     }
 
+    private fun applyBackendSync(state: UserStateEntity, sync: BackendAccountSync): UserStateEntity {
+        var updated = state.copy(backendSyncStatus = sync.message)
+        val auth = sync.auth
+        if (sync.success && auth != null) {
+            updated = updated.copy(
+                serverUserId = auth.userId,
+                backendAccessToken = auth.accessToken,
+                backendRefreshToken = auth.refreshToken,
+                backendTokenExpiresAt = auth.expiresAt
+            )
+        }
+        val entitlement = sync.entitlement
+        if (sync.success && entitlement != null) {
+            updated = applyBackendEntitlement(updated, entitlement)
+        }
+        return updated
+    }
+
+    private fun applyBackendEntitlement(
+        state: UserStateEntity,
+        entitlement: BackendEntitlementResponse
+    ): UserStateEntity {
+        val latestExpiry = maxOf(entitlement.stockVipExpireTime, entitlement.quantVipExpireTime)
+        return state.copy(
+            isVip = maxOf(latestExpiry, entitlement.graceUntil) > System.currentTimeMillis(),
+            vipExpireTime = latestExpiry,
+            stockVipExpireTime = entitlement.stockVipExpireTime,
+            quantVipExpireTime = entitlement.quantVipExpireTime,
+            backendGraceUntil = entitlement.graceUntil
+        )
+    }
+
     private fun formatSignedPercent(value: Double): String {
         return "${if (value >= 0) "+" else ""}${String.format(Locale.CHINA, "%.2f", value)}%"
     }
@@ -475,6 +587,7 @@ object LocalStateRepository {
     private fun hasAnyVip(state: UserStateEntity): Boolean {
         return isActive(state.stockVipExpireTime) ||
             isActive(state.quantVipExpireTime) ||
+            isWithinBackendGrace(state, maxOf(state.stockVipExpireTime, state.quantVipExpireTime)) ||
             isLegacyVipActive(state)
     }
 
@@ -485,6 +598,10 @@ object LocalStateRepository {
 
     private fun isActive(expireTime: Long): Boolean {
         return expireTime > System.currentTimeMillis()
+    }
+
+    private fun isWithinBackendGrace(state: UserStateEntity, tierExpireTime: Long): Boolean {
+        return tierExpireTime > 0L && isActive(state.backendGraceUntil)
     }
 
     private const val QUOTE_CACHE_MAX_AGE_MILLIS = 7L * 24L * 60L * 60L * 1000L

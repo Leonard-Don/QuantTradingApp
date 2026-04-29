@@ -98,12 +98,14 @@
     <string name="auth_enable_daily_reminder">开启每日研究提醒</string>
     <string name="auth_send_test_reminder">发送测试提醒</string>
     <string name="auth_logout">退出登录</string>
-    <string name="auth_local_account_notice">账号信息仅保存在本机，用于当前版本的登录态、VIP 权限和社区昵称。</string>
+    <string name="auth_local_account_notice">未启用服务端同步时，账号信息仅保存在本机；启用后会同步登录态与 VIP 权益。</string>
     <string name="auth_status_logged_in">已登录</string>
     <string name="auth_status_logged_out">未登录</string>
     <string name="auth_stock_vip_active">选股 VIP 至 %1$s</string>
+    <string name="auth_stock_vip_grace">选股 VIP 宽限期至 %1$s</string>
     <string name="auth_stock_vip_inactive">选股 VIP 未开通</string>
     <string name="auth_quant_vip_active">量化 VIP 至 %1$s</string>
+    <string name="auth_quant_vip_grace">量化 VIP 宽限期至 %1$s</string>
     <string name="auth_quant_vip_inactive">量化 VIP 未开通</string>
     <string name="auth_phone_unbound">未绑定手机号</string>
     <string name="auth_notification_enabled_next">每日研究提醒已开启（下次 %1$s）</string>
@@ -111,7 +113,7 @@
     <string name="auth_notification_disabled">每日研究提醒未开启</string>
     <string name="auth_reauthorize_notification">重新授权通知</string>
     <string name="auth_disable_daily_reminder">关闭每日研究提醒</string>
-    <string name="auth_account_status_format">%1$s · %2$s\n%3$s\n%4$s\n%5$s</string>
+    <string name="auth_account_status_format">%1$s · %2$s\n%3$s\n%4$s\n%5$s\n%6$s</string>
 
     <!-- Quant -->
     <string name="quant_title">量化研究</string>

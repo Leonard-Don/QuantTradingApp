@@ -8,6 +8,7 @@
 # Keep local model and DTO field names for Gson/Room-facing payloads.
 -keep class com.tianxian.quant.model.** { *; }
 -keep class com.tianxian.quant.data.*Entity { *; }
+-keep class com.tianxian.quant.network.*Backend* { *; }
 
 # Retrofit annotations and generic signatures.
 -keep class retrofit2.** { *; }

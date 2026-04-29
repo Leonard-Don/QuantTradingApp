@@ -137,7 +137,7 @@ class AuthActivity : AppCompatActivity() {
 
     private fun refreshState() {
         lifecycleScope.launch {
-            renderState(LocalStateRepository.getUserState())
+            renderState(LocalStateRepository.refreshBackendEntitlements())
         }
     }
 
@@ -150,11 +150,15 @@ class AuthActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         val stockVipText = if (state.stockVipExpireTime > now) {
             getString(R.string.auth_stock_vip_active, formatDate(state.stockVipExpireTime))
+        } else if (state.stockVipExpireTime > 0L && state.backendGraceUntil > now) {
+            getString(R.string.auth_stock_vip_grace, formatDate(state.backendGraceUntil))
         } else {
             getString(R.string.auth_stock_vip_inactive)
         }
         val quantVipText = if (state.quantVipExpireTime > now) {
             getString(R.string.auth_quant_vip_active, formatDate(state.quantVipExpireTime))
+        } else if (state.quantVipExpireTime > 0L && state.backendGraceUntil > now) {
+            getString(R.string.auth_quant_vip_grace, formatDate(state.backendGraceUntil))
         } else {
             getString(R.string.auth_quant_vip_inactive)
         }
@@ -178,7 +182,8 @@ class AuthActivity : AppCompatActivity() {
             stockVipText,
             quantVipText,
             phoneText,
-            notifyText
+            notifyText,
+            state.backendSyncStatus
         )
         binding.btnNotify.text = when {
             state.notificationsEnabled && !hasNotificationPermission -> {

@@ -82,6 +82,7 @@ App behavior:
 - Treat VIP as active only if `serverTime < expireTime` or `serverTime < graceUntil`.
 - Persist the latest verified entitlement with `lastVerifiedAt`.
 - If offline, allow cached entitlement only inside the grace window.
+- Android debug builds can enable this contract with `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/`.
 
 ### DELETE `/v1/me`
 
@@ -153,7 +154,7 @@ Response:
 
 ### POST `/v1/payment/callbacks/{channel}`
 
-Handled by the backend only. The app must not call this endpoint.
+Handled by the backend only in production. The Android debug build may call this endpoint only when backend sync and local payment simulation are both enabled, so QA can verify the order-entitlement loop without merchant credentials.
 
 Sandbox request shape:
 

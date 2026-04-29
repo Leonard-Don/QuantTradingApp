@@ -3,6 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
 }
+
+val tianxianApiBaseUrl = (project.findProperty("tianxianApiBaseUrl") as? String)
+    ?: "https://api.gutongwealth.com/"
+val tianxianBackendSyncEnabled = (project.findProperty("tianxianBackendSyncEnabled") as? String)
+    ?.toBooleanStrictOrNull()
+    ?: false
+
 android {
     namespace = "com.tianxian.quant"
     compileSdk = 35
@@ -13,7 +20,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "APP_API_BASE_URL", "\"https://api.gutongwealth.com/\"")
+        buildConfigField("String", "APP_API_BASE_URL", "\"$tianxianApiBaseUrl\"")
+        buildConfigField("boolean", "ENABLE_BACKEND_ACCOUNT_SYNC", tianxianBackendSyncEnabled.toString())
         buildConfigField("String", "TENCENT_QUOTE_BASE_URL", "\"https://qt.gtimg.cn/q=\"")
         buildConfigField("String", "TENCENT_KLINE_URL", "\"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=\"")
         buildConfigField("String", "SINA_QUOTE_BASE_URL", "\"https://hq.sinajs.cn/list=\"")

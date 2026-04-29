@@ -25,6 +25,12 @@ data class UserStateEntity(
     val stockVipExpireTime: Long = 0L,
     val quantVipExpireTime: Long = 0L,
     val notificationsEnabled: Boolean = false,
+    val serverUserId: String? = null,
+    val backendAccessToken: String? = null,
+    val backendRefreshToken: String? = null,
+    val backendTokenExpiresAt: Long = 0L,
+    val backendGraceUntil: Long = 0L,
+    val backendSyncStatus: String = "服务端同步未启用，当前使用本机演示账号",
     val createdAt: Long = System.currentTimeMillis(),
     val lastLoginAt: Long = 0L
 )
@@ -258,7 +264,7 @@ interface ReviewSnapshotDao {
         StrategyEntity::class,
         ReviewSnapshotEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -285,7 +291,7 @@ abstract class AppDatabase : RoomDatabase() {
 
 const val LOCAL_USER_ID = "local_user"
 const val DEFAULT_FILTER_ID = "default"
-private const val CURRENT_DATABASE_VERSION = 10
+private const val CURRENT_DATABASE_VERSION = 11
 
 val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until CURRENT_DATABASE_VERSION)
     .map { startVersion ->
@@ -405,6 +411,9 @@ private val CURRENT_TABLES = listOf(
             "`passwordHash` TEXT, `isLoggedIn` INTEGER NOT NULL, `isVip` INTEGER NOT NULL, " +
             "`vipExpireTime` INTEGER NOT NULL, `stockVipExpireTime` INTEGER NOT NULL, " +
             "`quantVipExpireTime` INTEGER NOT NULL, `notificationsEnabled` INTEGER NOT NULL, " +
+            "`serverUserId` TEXT, `backendAccessToken` TEXT, `backendRefreshToken` TEXT, " +
+            "`backendTokenExpiresAt` INTEGER NOT NULL, `backendGraceUntil` INTEGER NOT NULL, " +
+            "`backendSyncStatus` TEXT NOT NULL, " +
             "`createdAt` INTEGER NOT NULL, `lastLoginAt` INTEGER NOT NULL, PRIMARY KEY(`id`)",
         columns = listOf(
             textColumn("id", LOCAL_USER_ID),
@@ -417,6 +426,12 @@ private val CURRENT_TABLES = listOf(
             vipExpiryColumn("stockVipExpireTime"),
             vipExpiryColumn("quantVipExpireTime"),
             intColumn("notificationsEnabled"),
+            nullableColumn("serverUserId"),
+            nullableColumn("backendAccessToken"),
+            nullableColumn("backendRefreshToken"),
+            intColumn("backendTokenExpiresAt"),
+            intColumn("backendGraceUntil"),
+            textColumn("backendSyncStatus", "服务端同步未启用，当前使用本机演示账号"),
             intColumn("createdAt"),
             intColumn("lastLoginAt")
         )

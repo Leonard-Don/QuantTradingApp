@@ -5,6 +5,7 @@
 `PaymentGateway` is intentionally a local boundary:
 
 - Debug builds can return `DebugPaid` for local verification.
+- Debug builds can optionally create a backend sandbox order when `tianxianBackendSyncEnabled=true`.
 - Release builds return `NotConfigured` and must not activate VIP.
 
 This keeps the Android UI flow testable without pretending real money collection exists.
@@ -23,7 +24,7 @@ This keeps the Android UI flow testable without pretending real money collection
 ## Android Tasks
 
 - Add WeChat Pay SDK and Alipay SDK only after merchant accounts are available.
-- Replace `PaymentGateway.startSubscription()` implementation with backend order creation.
+- Keep the build-flagged backend order path and replace the Debug sandbox callback with merchant SDK confirmation once merchant accounts are available.
 - Store only order IDs and entitlement snapshots locally.
 - Add release guard that fails fast if payment configuration is missing.
 - Add UI states for pending, paid, failed, cancelled, refunded, and manual review.
@@ -66,5 +67,5 @@ Paid release is blocked until:
 - Entitlement API is integrated.
 - App release build cannot trigger local VIP activation.
 - Privacy policy and subscription rules mention renewal/refund behavior.
-- Android app calls backend order/entitlement endpoints instead of local Room as source of truth.
+- Android app backend sync is enabled against the deployed API, with Room used only as a cache.
 - Production merchant native signatures replace the scaffold HMAC.

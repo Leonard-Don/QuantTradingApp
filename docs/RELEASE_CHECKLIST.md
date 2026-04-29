@@ -13,6 +13,7 @@
 
 - [x] Backend contract scaffold covered by local pytest.
 - [x] Release APK/AAB artifact script exists.
+- [x] Android auth/VIP flows have a build-flagged backend sync path.
 - [ ] Configure signing properties outside git.
 - [ ] Build signed AAB.
 - [ ] Prepare app icon, screenshots, feature graphic, short description, and full description.
@@ -28,7 +29,7 @@
 
 - [ ] Server account system live.
 - [ ] Server entitlement API live.
-- [ ] Android auth/VIP flows integrated with server account and entitlement APIs.
+- [ ] Android backend sync enabled against deployed production API.
 - [ ] WeChat/Alipay merchant sandbox verified.
 - [ ] Backend payment callback verification live.
 - [ ] Refund/cancel policy implemented.
@@ -60,4 +61,10 @@ scripts/build_release_artifacts.sh
 # from repository root
 scripts/verify_backend.sh
 scripts/verify_all.sh
+
+# backend-sync debug build
+cd TianXianQuant
+./gradlew :app:assembleDebug \
+  -PtianxianBackendSyncEnabled=true \
+  -PtianxianApiBaseUrl=http://10.0.2.2:8080/
 ```

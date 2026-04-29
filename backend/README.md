@@ -10,6 +10,15 @@ python3 -m pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8080
 ```
 
+Android emulator debug builds can point at this local server with:
+
+```bash
+cd ../TianXianQuant
+./gradlew :app:assembleDebug \
+  -PtianxianBackendSyncEnabled=true \
+  -PtianxianApiBaseUrl=http://10.0.2.2:8080/
+```
+
 ## Test
 
 ```bash
