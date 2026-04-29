@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
 import com.tianxian.quant.model.MarketOverview
+import com.tianxian.quant.model.PortfolioStressPolicy
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
 import com.tianxian.quant.model.SectorInfo
@@ -104,7 +105,12 @@ class ReviewViewModel : ViewModel() {
             strongStocks = stocks.sortedByDescending { it.changePercent }.take(5),
             sampleStocks = stocks,
             watchlistStocks = watchlistStocks,
-            watchlistHealthReport = WatchlistHealthPolicy.evaluate(watchlistStocks)
+            watchlistHealthReport = WatchlistHealthPolicy.evaluate(watchlistStocks),
+            portfolioStressReport = PortfolioStressPolicy.evaluate(
+                stocks = watchlistStocks,
+                marketUpCount = stocks.count { it.changePercent > 0 },
+                marketDownCount = stocks.count { it.changePercent < 0 }
+            )
         )
         _reviewData.value = reviewData
         _reviewStatus.value = if (usingFallback) {

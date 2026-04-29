@@ -12,6 +12,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
 import com.tianxian.quant.databinding.FragmentQuantBinding
+import com.tianxian.quant.model.BacktestAnalysisPolicy
+import com.tianxian.quant.model.BacktestAnalysisReport
+import com.tianxian.quant.model.BacktestMetrics
 import com.tianxian.quant.model.QuantDiagnosticReport
 import com.tianxian.quant.model.Strategy
 import com.tianxian.quant.ui.vip.VipActivity
@@ -230,6 +233,17 @@ class QuantFragment : Fragment() {
     }
 
     private fun showBacktestResult(result: QuantViewModel.BacktestResult) {
+        val analysis = BacktestAnalysisPolicy.evaluate(
+            BacktestMetrics(
+                totalReturn = result.totalReturn.toDouble(),
+                annualizedReturn = result.annualizedReturn.toDouble(),
+                maxDrawdown = result.maxDrawdown.toDouble(),
+                sharpeRatio = result.sharpeRatio.toDouble(),
+                winRate = result.winRate.toDouble(),
+                totalTrades = result.totalTrades,
+                profitTrades = result.profitTrades
+            )
+        )
         val message = buildString {
             append("回测周期：${result.startDate} ~ ${result.endDate}\n\n")
             append("历史模拟指标：\n")
@@ -242,6 +256,8 @@ class QuantFragment : Fragment() {
             append("• 总交易次数：${result.totalTrades}\n")
             append("• 盈利交易：${result.profitTrades}\n")
             append("• 胜率：${String.format(Locale.CHINA, "%.1f", result.winRate)}%")
+            append("\n\n")
+            append(buildBacktestAnalysisText(analysis))
             append("\n\n历史模拟不代表未来结果，不构成投资建议。")
         }
 
@@ -250,6 +266,18 @@ class QuantFragment : Fragment() {
             .setMessage(message)
             .setPositiveButton("确定") { _, _ -> viewModel.clearBacktestResult() }
             .show()
+    }
+
+    private fun buildBacktestAnalysisText(report: BacktestAnalysisReport): String {
+        val risks = report.riskItems.joinToString("\n") { "• $it" }
+        val actions = report.researchActions.joinToString("\n") { "• $it" }
+        return "VIP风控解读：\n" +
+            "• 综合评分：${report.score}/100（${report.grade}）\n" +
+            "• ${report.returnText}\n" +
+            "• ${report.riskText}\n" +
+            "• ${report.reliabilityText}\n\n" +
+            "风险提示：\n$risks\n\n" +
+            "后续研究动作：\n$actions"
     }
 
     private fun showDiagnosticReport() {

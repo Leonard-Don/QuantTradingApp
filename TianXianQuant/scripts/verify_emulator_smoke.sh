@@ -246,6 +246,16 @@ tap_node "$REVIEW_XML" "content-desc" "自选体检"
 sleep 1
 dump_ui "$REVIEW_XML"
 assert_node "$REVIEW_XML" "text" "VIP自选池体检"
+if ! has_node "$REVIEW_XML" "text" "压力测试"; then
+  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
+  sleep 1
+  dump_ui "$REVIEW_XML"
+fi
+assert_node "$REVIEW_XML" "text" "压力测试"
+tap_node "$REVIEW_XML" "content-desc" "压力测试"
+sleep 1
+dump_ui "$REVIEW_XML"
+assert_node "$REVIEW_XML" "text" "VIP自选池压力测试"
 
 tap_node "$REVIEW_XML" "content-desc" "社区"
 sleep 1
