@@ -74,6 +74,17 @@ data class StockWatchlistEntity(
     val createdAt: Long
 )
 
+@Entity(tableName = "portfolio_holdings")
+data class PortfolioHoldingEntity(
+    @PrimaryKey val code: String,
+    val name: String,
+    val costPrice: Double,
+    val quantity: Double,
+    val note: String,
+    val createdAt: Long,
+    val updatedAt: Long
+)
+
 @Entity(tableName = "stock_quote_cache")
 data class StockQuoteCacheEntity(
     @PrimaryKey val code: String,
@@ -191,6 +202,21 @@ interface StockWatchlistDao {
 }
 
 @Dao
+interface PortfolioHoldingDao {
+    @Query("SELECT * FROM portfolio_holdings ORDER BY updatedAt DESC")
+    suspend fun getAll(): List<PortfolioHoldingEntity>
+
+    @Query("SELECT code FROM portfolio_holdings ORDER BY updatedAt DESC")
+    suspend fun getCodes(): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(holding: PortfolioHoldingEntity)
+
+    @Query("DELETE FROM portfolio_holdings WHERE code = :code")
+    suspend fun delete(code: String)
+}
+
+@Dao
 interface StockQuoteCacheDao {
     @Query("SELECT * FROM stock_quote_cache WHERE code IN (:codes)")
     suspend fun getByCodes(codes: List<String>): List<StockQuoteCacheEntity>
@@ -227,11 +253,12 @@ interface ReviewSnapshotDao {
         PostCommentEntity::class,
         StockFilterEntity::class,
         StockWatchlistEntity::class,
+        PortfolioHoldingEntity::class,
         StockQuoteCacheEntity::class,
         StrategyEntity::class,
         ReviewSnapshotEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -240,6 +267,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun postCommentDao(): PostCommentDao
     abstract fun stockFilterDao(): StockFilterDao
     abstract fun stockWatchlistDao(): StockWatchlistDao
+    abstract fun portfolioHoldingDao(): PortfolioHoldingDao
     abstract fun stockQuoteCacheDao(): StockQuoteCacheDao
     abstract fun strategyDao(): StrategyDao
     abstract fun reviewSnapshotDao(): ReviewSnapshotDao
@@ -257,10 +285,11 @@ abstract class AppDatabase : RoomDatabase() {
 
 const val LOCAL_USER_ID = "local_user"
 const val DEFAULT_FILTER_ID = "default"
+private const val CURRENT_DATABASE_VERSION = 10
 
-val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until 9)
+val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until CURRENT_DATABASE_VERSION)
     .map { startVersion ->
-        object : Migration(startVersion, 9) {
+        object : Migration(startVersion, CURRENT_DATABASE_VERSION) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 migrateToCurrentVersion(db)
             }
@@ -451,6 +480,21 @@ private val CURRENT_TABLES = listOf(
             textColumn("name", ""),
             textColumn("industry", ""),
             intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "portfolio_holdings",
+        columnsSql = "`code` TEXT NOT NULL, `name` TEXT NOT NULL, `costPrice` REAL NOT NULL, " +
+            "`quantity` REAL NOT NULL, `note` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
+            "`updatedAt` INTEGER NOT NULL, PRIMARY KEY(`code`)",
+        columns = listOf(
+            textColumn("code", ""),
+            textColumn("name", ""),
+            realColumn("costPrice"),
+            realColumn("quantity"),
+            textColumn("note", ""),
+            intColumn("createdAt"),
+            intColumn("updatedAt")
         )
     ),
     TableSpec(

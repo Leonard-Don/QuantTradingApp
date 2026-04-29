@@ -4,12 +4,17 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.google.android.material.tabs.TabLayout
+import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
 import com.tianxian.quant.databinding.FragmentReviewBinding
 import com.tianxian.quant.model.DailyResearchBriefReport
+import com.tianxian.quant.model.PortfolioHolding
+import com.tianxian.quant.model.PortfolioHoldingReport
 import com.tianxian.quant.model.PortfolioStressReport
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
@@ -50,7 +55,7 @@ class ReviewFragment : Fragment() {
     }
 
     private fun setupTabs() {
-        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检", "压力测试", "研究简报")
+        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检", "持仓组合", "压力测试", "研究简报")
         tabs.forEach { tab ->
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText(tab))
         }
@@ -132,10 +137,14 @@ class ReviewFragment : Fragment() {
             return
         }
         if (currentTab == 6) {
-            renderPortfolioStressTab()
+            renderPortfolioHoldingTab()
             return
         }
         if (currentTab == 7) {
+            renderPortfolioStressTab()
+            return
+        }
+        if (currentTab == 8) {
             renderDailyBriefTab()
             return
         }
@@ -325,6 +334,137 @@ class ReviewFragment : Fragment() {
             "说明：以上为本机自选池研究体检，不构成投资建议或交易指令。"
     }
 
+    private fun renderPortfolioHoldingTab() {
+        binding.tvReviewSectionTitle.text = getString(R.string.review_portfolio_holding_title)
+        if (!isVipActive) {
+            binding.tvHotSectors.text = getString(R.string.review_portfolio_holding_locked)
+            binding.btnReviewAction.visibility = View.VISIBLE
+            binding.btnReviewAction.text = getString(R.string.review_open_vip)
+            binding.btnReviewAction.setOnClickListener {
+                startActivity(VipActivity.createIntent(requireContext(), finishOnSuccess = true))
+            }
+            return
+        }
+
+        binding.btnReviewAction.visibility = View.VISIBLE
+        binding.btnReviewAction.text = "新增/更新持仓"
+        binding.btnReviewAction.setOnClickListener {
+            showPortfolioHoldingDialog()
+        }
+
+        val data = currentReviewData
+        val report = data?.portfolioHoldingReport
+        binding.tvHotSectors.text = if (data == null) {
+            "正在加载持仓组合数据。"
+        } else if (report == null) {
+            "暂无本机持仓记录。点击下方按钮录入股票代码、成本价和数量后，复盘页会基于当前 quote 估算浮盈亏、权重和风险标签。\n\n说明：持仓记录只保存在本机，不连接券商账户。"
+        } else {
+            buildPortfolioHoldingText(report)
+        }
+    }
+
+    private fun buildPortfolioHoldingText(report: PortfolioHoldingReport): String {
+        val positions = report.positions.joinToString("\n\n") { position ->
+            val quoteText = position.quote?.let {
+                "现价 ${priceFormat.format(it.price)}，涨跌 ${formatPercent(it.changePercent)}"
+            } ?: "行情缺失，按成本价估算"
+            val tags = position.riskTags.joinToString("、")
+            val note = position.holding.note.takeIf { it.isNotBlank() }?.let { "\n  备注：$it" }.orEmpty()
+            "· ${position.holding.name}(${position.holding.code})：权重 ${formatPositivePercent(position.weightPercent)}，浮盈亏 ${formatSignedMoney(position.profitLoss)}（${formatPercent(position.profitLossPercent)}）\n" +
+                "  $quoteText；成本 ${priceFormat.format(position.holding.costPrice)}，数量 ${formatHoldingQuantity(position.holding.quantity)}；标签：$tags$note"
+        }
+        val risks = report.riskItems.joinToString("\n") { "· $it" }
+        val actions = report.researchActions.joinToString("\n") { "· $it" }
+
+        return "组合评分：${report.score}/100（${report.grade}）\n" +
+            "${report.exposureText}\n" +
+            "${report.concentrationText}\n" +
+            "${report.quoteCoverageText}\n\n" +
+            "持仓样本：\n$positions\n\n" +
+            "风险雷达：\n$risks\n\n" +
+            "研究动作：\n$actions\n\n" +
+            "说明：组合报告只基于本机持仓样本和 quote 估算，不接券商、不下单、不构成投资建议。"
+    }
+
+    private fun showPortfolioHoldingDialog() {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_portfolio_holding, null)
+        val etCode = dialogView.findViewById<TextInputEditText>(R.id.etHoldingCode)
+        val etName = dialogView.findViewById<TextInputEditText>(R.id.etHoldingName)
+        val etCost = dialogView.findViewById<TextInputEditText>(R.id.etHoldingCost)
+        val etQuantity = dialogView.findViewById<TextInputEditText>(R.id.etHoldingQuantity)
+        val etNote = dialogView.findViewById<TextInputEditText>(R.id.etHoldingNote)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("持仓样本")
+            .setView(dialogView)
+            .setPositiveButton("保存", null)
+            .setNeutralButton("删除代码", null)
+            .setNegativeButton(getString(R.string.dialog_close), null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val holding = readHoldingInput(etCode, etName, etCost, etQuantity, etNote)
+                if (holding == null) return@setOnClickListener
+                viewModel.savePortfolioHolding(
+                    code = holding.code,
+                    name = holding.name,
+                    costPrice = holding.costPrice,
+                    quantity = holding.quantity,
+                    note = holding.note
+                )
+                Toast.makeText(requireContext(), "持仓样本已保存：${holding.name}", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                val code = etCode.text?.toString()?.trim().orEmpty()
+                if (!code.matches(Regex("\\d{6}"))) {
+                    Toast.makeText(requireContext(), "请输入要删除的 6 位股票代码", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                viewModel.deletePortfolioHolding(code)
+                Toast.makeText(requireContext(), "已删除持仓样本：$code", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun readHoldingInput(
+        etCode: TextInputEditText,
+        etName: TextInputEditText,
+        etCost: TextInputEditText,
+        etQuantity: TextInputEditText,
+        etNote: TextInputEditText
+    ): PortfolioHolding? {
+        val code = etCode.text?.toString()?.trim().orEmpty()
+        val name = etName.text?.toString()?.trim().orEmpty()
+        val cost = etCost.text?.toString()?.trim()?.toDoubleOrNull()
+        val quantity = etQuantity.text?.toString()?.trim()?.toDoubleOrNull()
+        val note = etNote.text?.toString()?.trim().orEmpty()
+        return when {
+            !code.matches(Regex("\\d{6}")) -> {
+                Toast.makeText(requireContext(), "请输入 6 位股票代码", Toast.LENGTH_SHORT).show()
+                null
+            }
+            cost == null || cost <= 0.0 -> {
+                Toast.makeText(requireContext(), "请输入大于 0 的成本价", Toast.LENGTH_SHORT).show()
+                null
+            }
+            quantity == null || quantity <= 0.0 -> {
+                Toast.makeText(requireContext(), "请输入大于 0 的数量", Toast.LENGTH_SHORT).show()
+                null
+            }
+            else -> PortfolioHolding(
+                code = code,
+                name = name.ifBlank { code },
+                costPrice = cost,
+                quantity = quantity,
+                note = note
+            )
+        }
+    }
+
     private fun renderPortfolioStressTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_portfolio_stress_title)
         if (!isVipActive) {
@@ -466,6 +606,18 @@ class ReviewFragment : Fragment() {
 
     private fun formatAmountDelta(value: Double): String {
         return "${if (value >= 0) "+" else ""}${priceFormat.format(value)}亿"
+    }
+
+    private fun formatSignedMoney(value: Double): String {
+        return "${if (value >= 0) "+" else ""}${priceFormat.format(value)}元"
+    }
+
+    private fun formatHoldingQuantity(value: Double): String {
+        return if (value % 1.0 == 0.0) {
+            String.format(Locale.CHINA, "%.0f股", value)
+        } else {
+            String.format(Locale.CHINA, "%.2f股", value)
+        }
     }
 
     private fun formatNullableMetric(value: Double): String {

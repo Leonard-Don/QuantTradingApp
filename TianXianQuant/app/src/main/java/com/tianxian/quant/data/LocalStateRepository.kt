@@ -2,6 +2,7 @@ package com.tianxian.quant.data
 
 import com.tianxian.quant.model.Post
 import com.tianxian.quant.model.PostComment
+import com.tianxian.quant.model.PortfolioHolding
 import com.tianxian.quant.model.Strategy
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
@@ -187,6 +188,40 @@ object LocalStateRepository {
         db.stockWatchlistDao().delete(code)
     }
 
+    suspend fun getPortfolioHoldings(): List<PortfolioHolding> {
+        return db.portfolioHoldingDao().getAll().map { it.toHolding() }
+    }
+
+    suspend fun getPortfolioHoldingCodes(): List<String> {
+        return db.portfolioHoldingDao().getCodes()
+    }
+
+    suspend fun savePortfolioHolding(
+        code: String,
+        name: String,
+        costPrice: Double,
+        quantity: Double,
+        note: String = ""
+    ) {
+        val now = System.currentTimeMillis()
+        val existing = db.portfolioHoldingDao().getAll().firstOrNull { it.code == code }
+        db.portfolioHoldingDao().save(
+            PortfolioHoldingEntity(
+                code = code,
+                name = name.ifBlank { code },
+                costPrice = costPrice,
+                quantity = quantity,
+                note = note,
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now
+            )
+        )
+    }
+
+    suspend fun deletePortfolioHolding(code: String) {
+        db.portfolioHoldingDao().delete(code)
+    }
+
     suspend fun saveStockQuoteCache(
         stocks: List<StockInfo>,
         source: String,
@@ -344,6 +379,18 @@ object LocalStateRepository {
             ma5 = ma5,
             ma10 = ma10,
             ma20 = ma20
+        )
+    }
+
+    private fun PortfolioHoldingEntity.toHolding(): PortfolioHolding {
+        return PortfolioHolding(
+            code = code,
+            name = name,
+            costPrice = costPrice,
+            quantity = quantity,
+            note = note,
+            createdAt = createdAt,
+            updatedAt = updatedAt
         )
     }
 

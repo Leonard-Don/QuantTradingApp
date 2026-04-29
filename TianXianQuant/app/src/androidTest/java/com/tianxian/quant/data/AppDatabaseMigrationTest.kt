@@ -33,6 +33,7 @@ class AppDatabaseMigrationTest {
             assertTrue("post_comments should exist", "post_comments" in tables)
             assertTrue("review_snapshots should exist", "review_snapshots" in tables)
             assertTrue("stock_quote_cache should exist", "stock_quote_cache" in tables)
+            assertTrue("portfolio_holdings should exist", "portfolio_holdings" in tables)
         } finally {
             database.close()
         }

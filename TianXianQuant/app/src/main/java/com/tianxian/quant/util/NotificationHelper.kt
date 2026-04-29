@@ -67,13 +67,17 @@ object NotificationHelper {
         alarmManager.cancel(reminderPendingIntent(context))
     }
 
-    fun showResearchReminder(context: Context) {
+    fun showResearchReminder(
+        context: Context,
+        summary: String = "今日可以查看行情池、复盘样本和量化模型记录。"
+    ) {
         if (!canPostNotifications(context)) return
         ensureChannel(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("天线量化研究提醒")
-            .setContentText("今日可以查看行情池、复盘样本和量化模型记录。")
+            .setContentText(summary)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
             .setContentIntent(openAppPendingIntent(context))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

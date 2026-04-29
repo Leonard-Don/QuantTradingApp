@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
 import com.tianxian.quant.model.DailyResearchBriefPolicy
 import com.tianxian.quant.model.MarketOverview
+import com.tianxian.quant.model.PortfolioHoldingPolicy
 import com.tianxian.quant.model.PortfolioStressPolicy
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
@@ -72,7 +73,9 @@ class ReviewViewModel : ViewModel() {
     private suspend fun loadReviewData() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val watchlistCodes = LocalStateRepository.getWatchlistCodes()
-        val sampleCodes = (StockSearchIndex.defaultCodes(REVIEW_SAMPLE_LIMIT) + watchlistCodes).distinct()
+        val holdings = LocalStateRepository.getPortfolioHoldings()
+        val holdingCodes = holdings.map { it.code }
+        val sampleCodes = (StockSearchIndex.defaultCodes(REVIEW_SAMPLE_LIMIT) + watchlistCodes + holdingCodes).distinct()
         val quoteResult = MarketDataRepository.getQuoteResult(sampleCodes)
         val liveStocks = quoteResult.getOrNull().orEmpty()
         val usingFallback = quoteResult is MarketDataResult.Failure || liveStocks.isEmpty()
@@ -104,6 +107,10 @@ class ReviewViewModel : ViewModel() {
             marketUpCount = upCount,
             marketDownCount = downCount
         )
+        val portfolioHoldingReport = PortfolioHoldingPolicy.evaluate(
+            holdings = holdings,
+            quotes = stocks
+        )
         val dailyBriefReport = DailyResearchBriefPolicy.evaluate(
             date = today,
             upCount = upCount,
@@ -113,7 +120,8 @@ class ReviewViewModel : ViewModel() {
             strongStocks = stocks.sortedByDescending { it.changePercent }.take(5),
             watchlistStocks = watchlistStocks,
             watchlistHealthReport = watchlistHealthReport,
-            portfolioStressReport = portfolioStressReport
+            portfolioStressReport = portfolioStressReport,
+            portfolioHoldingReport = portfolioHoldingReport
         )
 
         val reviewData = ReviewData(
@@ -129,7 +137,8 @@ class ReviewViewModel : ViewModel() {
             watchlistStocks = watchlistStocks,
             watchlistHealthReport = watchlistHealthReport,
             portfolioStressReport = portfolioStressReport,
-            dailyResearchBriefReport = dailyBriefReport
+            dailyResearchBriefReport = dailyBriefReport,
+            portfolioHoldingReport = portfolioHoldingReport
         )
         _reviewData.value = reviewData
         _reviewStatus.value = if (usingFallback) {
@@ -153,6 +162,32 @@ class ReviewViewModel : ViewModel() {
 
     fun refresh() {
         loadAllData()
+    }
+
+    fun savePortfolioHolding(
+        code: String,
+        name: String,
+        costPrice: Double,
+        quantity: Double,
+        note: String
+    ) {
+        viewModelScope.launch {
+            LocalStateRepository.savePortfolioHolding(
+                code = code,
+                name = name,
+                costPrice = costPrice,
+                quantity = quantity,
+                note = note
+            )
+            loadAllData()
+        }
+    }
+
+    fun deletePortfolioHolding(code: String) {
+        viewModelScope.launch {
+            LocalStateRepository.deletePortfolioHolding(code)
+            loadAllData()
+        }
     }
 
     fun refreshVipState() {

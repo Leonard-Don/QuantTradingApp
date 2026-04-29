@@ -118,6 +118,41 @@ sys.exit(1)
 PY
 }
 
+node_tap_points() {
+  local xml_file="$1"
+  local attr_name="$2"
+  local value="$3"
+  python3 - "$xml_file" "$attr_name" "$value" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+xml_file, attr_name, value = sys.argv[1:4]
+root = ET.parse(xml_file).getroot()
+for node in root.iter():
+    if node.attrib.get(attr_name) != value:
+        continue
+    bounds = node.attrib.get("bounds", "")
+    match = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
+    if not match:
+        continue
+    x1, y1, x2, y2 = map(int, match.groups())
+    x = (x1 + x2) // 2
+    candidates = [
+        (y1 + y2) // 2,
+        max(y1 + 1, min(y2 - 1, y2 - max(8, (y2 - y1) // 5))),
+        max(y1 + 1, min(y2 - 1, y1 + max(8, (y2 - y1) // 5))),
+    ]
+    seen = set()
+    for y in candidates:
+        if y not in seen:
+            seen.add(y)
+            print(f"{x} {y}")
+    sys.exit(0)
+sys.exit(1)
+PY
+}
+
 has_node() {
   local xml_file="$1"
   local attr_name="$2"
@@ -156,6 +191,44 @@ tap_node() {
     exit 1
   fi
   "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input tap $xy
+}
+
+tap_node_points() {
+  local xml_file="$1"
+  local attr_name="$2"
+  local value="$3"
+  local points
+  if ! points="$(node_tap_points "$xml_file" "$attr_name" "$value")"; then
+    echo "Cannot tap missing UI node: $attr_name=$value" >&2
+    exit 1
+  fi
+  while read -r xy; do
+    [[ -z "$xy" ]] && continue
+    "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input tap $xy
+    sleep 0.3
+  done <<< "$points"
+}
+
+select_review_tab() {
+  local label="$1"
+  local expected_title="$2"
+  for attempt in 1 2 3; do
+    if ! has_node "$REVIEW_XML" "text" "$label"; then
+      "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
+      sleep 1
+      dump_ui "$REVIEW_XML"
+    fi
+    assert_node "$REVIEW_XML" "text" "$label"
+    tap_node_points "$REVIEW_XML" "text" "$label"
+    sleep 2
+    dump_ui "$REVIEW_XML"
+    if has_node "$REVIEW_XML" "text" "$expected_title"; then
+      return
+    fi
+  done
+  echo "Review tab did not open: $label -> $expected_title" >&2
+  sed -n '1,120p' "$REVIEW_XML" >&2
+  exit 1
 }
 
 assert_focus_contains() {
@@ -236,36 +309,10 @@ sleep 1
 REVIEW_XML="$WORK_DIR/review.xml"
 dump_ui "$REVIEW_XML"
 assert_node "$REVIEW_XML" "text" "市场概况"
-if ! has_node "$REVIEW_XML" "text" "自选体检"; then
-  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
-  sleep 1
-  dump_ui "$REVIEW_XML"
-fi
-assert_node "$REVIEW_XML" "text" "自选体检"
-tap_node "$REVIEW_XML" "content-desc" "自选体检"
-sleep 1
-dump_ui "$REVIEW_XML"
-assert_node "$REVIEW_XML" "text" "VIP自选池体检"
-if ! has_node "$REVIEW_XML" "text" "压力测试"; then
-  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
-  sleep 1
-  dump_ui "$REVIEW_XML"
-fi
-assert_node "$REVIEW_XML" "text" "压力测试"
-tap_node "$REVIEW_XML" "content-desc" "压力测试"
-sleep 1
-dump_ui "$REVIEW_XML"
-assert_node "$REVIEW_XML" "text" "VIP自选池压力测试"
-if ! has_node "$REVIEW_XML" "text" "研究简报"; then
-  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
-  sleep 1
-  dump_ui "$REVIEW_XML"
-fi
-assert_node "$REVIEW_XML" "text" "研究简报"
-tap_node "$REVIEW_XML" "content-desc" "研究简报"
-sleep 1
-dump_ui "$REVIEW_XML"
-assert_node "$REVIEW_XML" "text" "VIP每日研究简报"
+select_review_tab "自选体检" "VIP自选池体检"
+select_review_tab "持仓组合" "VIP持仓组合"
+select_review_tab "压力测试" "VIP自选池压力测试"
+select_review_tab "研究简报" "VIP每日研究简报"
 
 tap_node "$REVIEW_XML" "content-desc" "社区"
 sleep 1

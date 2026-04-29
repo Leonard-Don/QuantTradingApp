@@ -54,7 +54,8 @@ data class ReviewData(
     val watchlistStocks: List<StockInfo> = emptyList(),
     val watchlistHealthReport: WatchlistHealthReport? = null,
     val portfolioStressReport: PortfolioStressReport? = null,
-    val dailyResearchBriefReport: DailyResearchBriefReport? = null
+    val dailyResearchBriefReport: DailyResearchBriefReport? = null,
+    val portfolioHoldingReport: PortfolioHoldingReport? = null
 )
 
 data class ReviewSnapshot(
@@ -114,6 +115,16 @@ data class QuantSignal(
     val strength: Int,
     val state: String,
     val factors: List<String>
+)
+
+data class PortfolioHolding(
+    val code: String,
+    val name: String,
+    val costPrice: Double,
+    val quantity: Double,
+    val note: String = "",
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )
 
 data class VipPlan(

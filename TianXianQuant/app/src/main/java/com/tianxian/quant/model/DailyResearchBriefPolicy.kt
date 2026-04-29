@@ -24,7 +24,8 @@ object DailyResearchBriefPolicy {
         strongStocks: List<StockInfo>,
         watchlistStocks: List<StockInfo>,
         watchlistHealthReport: WatchlistHealthReport?,
-        portfolioStressReport: PortfolioStressReport?
+        portfolioStressReport: PortfolioStressReport?,
+        portfolioHoldingReport: PortfolioHoldingReport? = null
     ): DailyResearchBriefReport {
         val totalBreadth = (upCount + downCount).coerceAtLeast(1)
         val upRatio = upCount * 1.0 / totalBreadth
@@ -50,12 +51,15 @@ object DailyResearchBriefPolicy {
         val watchlistAvgChange = watchlistStocks.takeIf { it.isNotEmpty() }
             ?.map { it.changePercent }
             ?.average()
+        val holdingPulse = portfolioHoldingReport?.let {
+            " 持仓组合 ${it.positions.size} 个，浮盈亏 ${formatPercent(it.profitLossPercent)}，组合 ${it.score} 分。"
+        }.orEmpty()
         val watchlistPulse = if (watchlistStocks.isEmpty()) {
             "自选池暂无样本，今日简报只能覆盖行情池和板块样本。"
         } else {
             "自选池 ${watchlistStocks.size} 只，平均涨跌 ${formatPercent(watchlistAvgChange ?: 0.0)}；" +
                 "健康 ${watchlistHealthReport?.score?.toString() ?: "暂无"} 分，压力 ${portfolioStressReport?.score?.toString() ?: "暂无"} 分。"
-        }
+        } + holdingPulse
 
         val focusItems = buildList {
             add("市场宽度：上涨 $upCount 只、下跌 $downCount 只，上涨占比 ${formatRatio(upRatio)}。")
@@ -76,6 +80,7 @@ object DailyResearchBriefPolicy {
             }
             watchlistHealthReport?.riskItems?.take(2)?.forEach { add(it) }
             portfolioStressReport?.riskItems?.take(2)?.forEach { add(it) }
+            portfolioHoldingReport?.riskItems?.take(2)?.forEach { add(it) }
             if (watchlistStocks.isEmpty()) {
                 add("自选池为空，无法生成个性化组合体检和压力测试。")
             }
@@ -88,6 +93,7 @@ object DailyResearchBriefPolicy {
             add("先复盘市场宽度和前三板块，再看自选池是否与市场方向一致。")
             watchlistHealthReport?.researchActions?.firstOrNull()?.let { add(it) }
             portfolioStressReport?.researchActions?.firstOrNull()?.let { add(it) }
+            portfolioHoldingReport?.researchActions?.firstOrNull()?.let { add(it) }
             if (watchlistStocks.isEmpty()) {
                 add("在选股页加入至少 5 只自选样本，让后续简报具备个性化跟踪口径。")
             }
