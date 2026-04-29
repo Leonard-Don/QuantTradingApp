@@ -53,7 +53,8 @@ data class ReviewData(
     val sampleStocks: List<StockInfo> = emptyList(),
     val watchlistStocks: List<StockInfo> = emptyList(),
     val watchlistHealthReport: WatchlistHealthReport? = null,
-    val portfolioStressReport: PortfolioStressReport? = null
+    val portfolioStressReport: PortfolioStressReport? = null,
+    val dailyResearchBriefReport: DailyResearchBriefReport? = null
 )
 
 data class ReviewSnapshot(

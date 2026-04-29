@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
+import com.tianxian.quant.model.DailyResearchBriefPolicy
 import com.tianxian.quant.model.MarketOverview
 import com.tianxian.quant.model.PortfolioStressPolicy
 import com.tianxian.quant.model.ReviewData
@@ -94,23 +95,41 @@ class ReviewViewModel : ViewModel() {
             }
             .sortedByDescending { it.changePercent }
 
+        val upCount = stocks.count { it.changePercent > 0 }
+        val downCount = stocks.count { it.changePercent < 0 }
+        val totalAmount = stocks.sumOf { it.turnover }
+        val watchlistHealthReport = WatchlistHealthPolicy.evaluate(watchlistStocks)
+        val portfolioStressReport = PortfolioStressPolicy.evaluate(
+            stocks = watchlistStocks,
+            marketUpCount = upCount,
+            marketDownCount = downCount
+        )
+        val dailyBriefReport = DailyResearchBriefPolicy.evaluate(
+            date = today,
+            upCount = upCount,
+            downCount = downCount,
+            totalAmount = totalAmount,
+            hotSectors = sectors,
+            strongStocks = stocks.sortedByDescending { it.changePercent }.take(5),
+            watchlistStocks = watchlistStocks,
+            watchlistHealthReport = watchlistHealthReport,
+            portfolioStressReport = portfolioStressReport
+        )
+
         val reviewData = ReviewData(
             date = today,
-            upCount = stocks.count { it.changePercent > 0 },
-            downCount = stocks.count { it.changePercent < 0 },
+            upCount = upCount,
+            downCount = downCount,
             limitUpCount = stocks.count { it.changePercent >= 9.8 },
             limitDownCount = stocks.count { it.changePercent <= -9.8 },
-            totalAmount = stocks.sumOf { it.turnover },
+            totalAmount = totalAmount,
             hotSectors = sectors,
             strongStocks = stocks.sortedByDescending { it.changePercent }.take(5),
             sampleStocks = stocks,
             watchlistStocks = watchlistStocks,
-            watchlistHealthReport = WatchlistHealthPolicy.evaluate(watchlistStocks),
-            portfolioStressReport = PortfolioStressPolicy.evaluate(
-                stocks = watchlistStocks,
-                marketUpCount = stocks.count { it.changePercent > 0 },
-                marketDownCount = stocks.count { it.changePercent < 0 }
-            )
+            watchlistHealthReport = watchlistHealthReport,
+            portfolioStressReport = portfolioStressReport,
+            dailyResearchBriefReport = dailyBriefReport
         )
         _reviewData.value = reviewData
         _reviewStatus.value = if (usingFallback) {

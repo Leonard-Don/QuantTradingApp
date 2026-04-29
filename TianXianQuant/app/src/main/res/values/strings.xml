@@ -56,6 +56,8 @@
     <string name="review_watchlist_health_locked">自选池体检为 VIP 功能：订阅后可基于本机自选池、多源行情和均线数据，查看组合健康评分、行业集中度、趋势压力、估值异常和后续研究动作。\n\n说明：体检只做研究记录和风险识别，不给出具体买卖指令。</string>
     <string name="review_portfolio_stress_title">VIP自选池压力测试</string>
     <string name="review_portfolio_stress_locked">自选池压力测试为 VIP 功能：订阅后可基于本机自选池、行情池宽度、行业集中度、估值和趋势状态，查看温和回撤、系统压力、极端压力三类情景下的等权回撤估算。\n\n说明：压力测试只做研究记录和风险识别，不使用真实仓位、成本价或交易指令。</string>
+    <string name="review_daily_brief_title">VIP每日研究简报</string>
+    <string name="review_daily_brief_locked">每日研究简报为 VIP 功能：订阅后可把市场宽度、板块轮动、自选池体检、压力测试和今日研究动作整合成一份本机简报。\n\n说明：简报只做复盘整理和研究记录，不给出具体买卖指令或收益承诺。</string>
 
     <!-- Community -->
     <string name="new_post">发布帖子</string>
@@ -150,6 +152,7 @@
     <string name="vip_normal_feat_2">主力资金观察入口</string>
     <string name="vip_normal_feat_3">每日精选股票池</string>
     <string name="vip_normal_feat_4">自选池体检与压力测试</string>
+    <string name="vip_normal_feat_5">每日研究简报</string>
 
     <string name="vip_senior_features">量化 VIP 权益</string>
     <string name="vip_senior_feat_1">策略回测</string>

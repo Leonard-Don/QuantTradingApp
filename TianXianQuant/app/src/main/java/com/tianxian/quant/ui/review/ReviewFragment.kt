@@ -9,6 +9,7 @@ import androidx.fragment.app.viewModels
 import com.google.android.material.tabs.TabLayout
 import com.tianxian.quant.R
 import com.tianxian.quant.databinding.FragmentReviewBinding
+import com.tianxian.quant.model.DailyResearchBriefReport
 import com.tianxian.quant.model.PortfolioStressReport
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
@@ -49,7 +50,7 @@ class ReviewFragment : Fragment() {
     }
 
     private fun setupTabs() {
-        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检", "压力测试")
+        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检", "压力测试", "研究简报")
         tabs.forEach { tab ->
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText(tab))
         }
@@ -132,6 +133,10 @@ class ReviewFragment : Fragment() {
         }
         if (currentTab == 6) {
             renderPortfolioStressTab()
+            return
+        }
+        if (currentTab == 7) {
+            renderDailyBriefTab()
             return
         }
 
@@ -369,6 +374,49 @@ class ReviewFragment : Fragment() {
             "风险雷达：\n$risks\n\n" +
             "建议研究动作：\n$actions\n\n" +
             "说明：压力测试基于本机自选池等权估算，不使用真实仓位、成本价或交易指令。"
+    }
+
+    private fun renderDailyBriefTab() {
+        binding.tvReviewSectionTitle.text = getString(R.string.review_daily_brief_title)
+        if (!isVipActive) {
+            binding.tvHotSectors.text = getString(R.string.review_daily_brief_locked)
+            binding.btnReviewAction.visibility = View.VISIBLE
+            binding.btnReviewAction.text = getString(R.string.review_open_vip)
+            binding.btnReviewAction.setOnClickListener {
+                startActivity(VipActivity.createIntent(requireContext(), finishOnSuccess = true))
+            }
+            return
+        }
+
+        binding.btnReviewAction.visibility = View.VISIBLE
+        binding.btnReviewAction.text = getString(R.string.review_refresh_snapshot)
+        binding.btnReviewAction.setOnClickListener {
+            viewModel.refresh()
+        }
+
+        val data = currentReviewData
+        val report = data?.dailyResearchBriefReport
+        binding.tvHotSectors.text = if (data == null || report == null) {
+            "正在生成今日研究简报。"
+        } else {
+            buildDailyBriefText(report)
+        }
+    }
+
+    private fun buildDailyBriefText(report: DailyResearchBriefReport): String {
+        val focus = report.focusItems.joinToString("\n") { "· $it" }
+        val risks = report.riskItems.joinToString("\n") { "· $it" }
+        val actions = report.actionItems.joinToString("\n") { "· $it" }
+
+        return "简报评分：${report.score}/100（${report.grade}）\n" +
+            "${report.headline}\n\n" +
+            "市场脉搏：\n${report.marketPulse}\n\n" +
+            "板块脉搏：\n${report.sectorPulse}\n\n" +
+            "自选脉搏：\n${report.watchlistPulse}\n\n" +
+            "今日焦点：\n$focus\n\n" +
+            "风险提醒：\n$risks\n\n" +
+            "研究动作：\n$actions\n\n" +
+            "说明：每日简报只做复盘整理和研究记录，不构成投资建议或交易指令。"
     }
 
     private fun buildHistorySummary(history: List<ReviewSnapshot>): String {
