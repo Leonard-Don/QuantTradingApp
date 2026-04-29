@@ -10,6 +10,7 @@ import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
 import com.tianxian.quant.model.SectorInfo
 import com.tianxian.quant.model.StockSearchIndex
+import com.tianxian.quant.model.WatchlistHealthPolicy
 import com.tianxian.quant.network.MarketDataResult
 import com.tianxian.quant.network.MarketDataRepository
 import kotlinx.coroutines.launch
@@ -102,7 +103,8 @@ class ReviewViewModel : ViewModel() {
             hotSectors = sectors,
             strongStocks = stocks.sortedByDescending { it.changePercent }.take(5),
             sampleStocks = stocks,
-            watchlistStocks = watchlistStocks
+            watchlistStocks = watchlistStocks,
+            watchlistHealthReport = WatchlistHealthPolicy.evaluate(watchlistStocks)
         )
         _reviewData.value = reviewData
         _reviewStatus.value = if (usingFallback) {

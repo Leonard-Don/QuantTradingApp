@@ -115,7 +115,7 @@ TianXianQuant/
 
 ## 当前工程状态
 
-- 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；不可用时展示明确离线降级状态。
+- 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；实时源不可用时优先展示最近本机行情缓存，并明确标注缓存时间。
 - 登录、社区、VIP 到期时间均为本机 Room 状态，仅适合 Demo/MVP 验证，不具备商业级账号与权益防篡改能力。
 - Debug 可本地模拟支付开通；Release 中 `ALLOW_LOCAL_PAYMENT_SIMULATION=false`，不会直接开通 VIP。
 - Release 已开启 R8 混淆与资源压缩，但正式上架仍需要签名、AAB、真实支付/账号服务与隐私合规材料。
@@ -127,6 +127,16 @@ cd TianXianQuant
 scripts/verify_p0.sh
 scripts/verify_emulator_smoke.sh
 ```
+
+## 商业化与发布资料
+
+- `docs/COMMERCIALIZATION_GAP.md`：当前内测/上架/付费发布差距。
+- `docs/SERVER_CONTRACT.md`：最小服务端账号、订单、权益和数据代理契约。
+- `docs/PAYMENT_INTEGRATION.md`：微信/支付宝正式接入计划。
+- `docs/DATA_PROVIDER_STRATEGY.md`：公开数据与授权数据源边界。
+- `docs/RELEASE_CHECKLIST.md`：内部包、商店测试、付费上线检查表。
+- `docs/PRIVACY_POLICY_DRAFT.md` / `docs/TERMS_OF_SERVICE_DRAFT.md`：隐私政策和用户协议草案。
+- `.github/workflows/android-p0.yml`：GitHub Actions P0 工程检查。
 
 ## 下一步开发
 

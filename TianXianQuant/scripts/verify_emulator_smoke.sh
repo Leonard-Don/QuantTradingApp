@@ -236,18 +236,45 @@ sleep 1
 REVIEW_XML="$WORK_DIR/review.xml"
 dump_ui "$REVIEW_XML"
 assert_node "$REVIEW_XML" "text" "市场概况"
+if ! has_node "$REVIEW_XML" "text" "自选体检"; then
+  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
+  sleep 1
+  dump_ui "$REVIEW_XML"
+fi
+assert_node "$REVIEW_XML" "text" "自选体检"
+tap_node "$REVIEW_XML" "content-desc" "自选体检"
+sleep 1
+dump_ui "$REVIEW_XML"
+assert_node "$REVIEW_XML" "text" "VIP自选池体检"
 
 tap_node "$REVIEW_XML" "content-desc" "社区"
 sleep 1
 COMMUNITY_XML="$WORK_DIR/community.xml"
 dump_ui "$COMMUNITY_XML"
 assert_node "$COMMUNITY_XML" "content-desc" "发布帖子"
+for _ in 1 2 3 4; do
+  if has_node "$COMMUNITY_XML" "text" "消费板块估值分位笔记"; then
+    break
+  fi
+  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 540 1750 540 1000 300
+  sleep 0.5
+  dump_ui "$COMMUNITY_XML"
+done
+assert_node "$COMMUNITY_XML" "text" "消费板块估值分位笔记"
+tap_node "$COMMUNITY_XML" "text" "消费板块估值分位笔记"
+sleep 1
+COMMUNITY_DETAIL_XML="$WORK_DIR/community-detail.xml"
+dump_ui "$COMMUNITY_DETAIL_XML"
+assert_node "$COMMUNITY_DETAIL_XML" "text" "研究纪要(VIP)"
+tap_node "$COMMUNITY_DETAIL_XML" "text" "关闭"
+sleep 1
 
 tap_node "$COMMUNITY_XML" "content-desc" "量化"
 sleep 1
 QUANT_XML="$WORK_DIR/quant.xml"
 dump_ui "$QUANT_XML"
 assert_node "$QUANT_XML" "text" "模型信号观察"
+assert_node "$QUANT_XML" "text" "模型诊断(VIP)"
 assert_node "$QUANT_XML" "text" "研究模型"
 
 tap_node "$QUANT_XML" "content-desc" "选股"
@@ -255,6 +282,21 @@ sleep 1
 STOCK_XML="$WORK_DIR/stock.xml"
 dump_ui "$STOCK_XML"
 assert_node "$STOCK_XML" "text" "搜索股票代码或名称"
+for _ in 1 2 3 4 5; do
+  if has_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"; then
+    break
+  fi
+  sleep 1
+  dump_ui "$STOCK_XML"
+done
+assert_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"
+tap_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"
+sleep 1
+STOCK_DETAIL_XML="$WORK_DIR/stock-detail.xml"
+dump_ui "$STOCK_DETAIL_XML"
+assert_node "$STOCK_DETAIL_XML" "text" "深度诊断(VIP)"
+tap_node "$STOCK_DETAIL_XML" "text" "关闭"
+sleep 1
 
 echo "== Checking VIP and auth path =="
 VIP_CHIP_XML="$WORK_DIR/vip-chip.xml"

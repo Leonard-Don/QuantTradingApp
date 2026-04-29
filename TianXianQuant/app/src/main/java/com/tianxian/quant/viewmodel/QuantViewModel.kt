@@ -5,6 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
+import com.tianxian.quant.model.QuantDiagnosticPolicy
+import com.tianxian.quant.model.QuantDiagnosticReport
 import com.tianxian.quant.model.QuantSignal
 import com.tianxian.quant.model.QuantFormulaPolicy
 import com.tianxian.quant.model.Strategy
@@ -39,6 +41,9 @@ class QuantViewModel : ViewModel() {
 
     private val _signalStatus = MutableLiveData<String>()
     val signalStatus: LiveData<String> = _signalStatus
+
+    private val _diagnosticReport = MutableLiveData<QuantDiagnosticReport?>()
+    val diagnosticReport: LiveData<QuantDiagnosticReport?> = _diagnosticReport
 
     private val allStrategies = mutableListOf<Strategy>()
 
@@ -139,6 +144,7 @@ class QuantViewModel : ViewModel() {
         )
         allStrategies.add(0, strategy)
         _strategies.value = allStrategies.toList()
+        refreshDiagnosticReport()
         viewModelScope.launch {
             LocalStateRepository.saveCustomStrategy(strategy)
         }
@@ -161,11 +167,13 @@ class QuantViewModel : ViewModel() {
         if (quoteResult is MarketDataResult.Failure) {
             _quantSignals.value = emptyList()
             _signalStatus.value = "${quoteResult.message}，模型信号观察暂不展示离线模拟结果。"
+            refreshDiagnosticReport(emptyList())
             return
         }
         if (quotes.isEmpty()) {
             _quantSignals.value = emptyList()
             _signalStatus.value = "腾讯 quote 暂无可用行情，模型信号观察不展示离线模拟结果。"
+            refreshDiagnosticReport(emptyList())
             return
         }
 
@@ -185,6 +193,7 @@ class QuantViewModel : ViewModel() {
             .take(3)
 
         _quantSignals.value = signals
+        refreshDiagnosticReport(signals)
         _signalStatus.value = if (signals.isEmpty()) {
             val reason = (averageResult as? MarketDataResult.Failure)?.message ?: "历史 K 线暂不可用"
             "$reason，当前不展示模型信号观察。"
@@ -193,6 +202,10 @@ class QuantViewModel : ViewModel() {
             val averageSource = averageResult.sourceOrNull() ?: "多源 K 线"
             "基于当前样本 quote、成交额和复权日线均线生成，仅展示前三项用于模型状态观察。行情源：$quoteSource；均线源：$averageSource。"
         }
+    }
+
+    private fun refreshDiagnosticReport(signals: List<QuantSignal> = _quantSignals.value.orEmpty()) {
+        _diagnosticReport.value = QuantDiagnosticPolicy.evaluate(allStrategies.toList(), signals)
     }
 
     private fun buildQuantSignal(stock: StockInfo): QuantSignal {

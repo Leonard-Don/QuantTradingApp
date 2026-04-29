@@ -1,12 +1,18 @@
 package com.tianxian.quant.network
 
+import com.tianxian.quant.data.CachedStockQuoteSnapshot
+import com.tianxian.quant.data.LocalStateRepository
 import com.tianxian.quant.model.MarketOverview
 import com.tianxian.quant.model.MovingAverageInfo
 import com.tianxian.quant.model.StockInfo
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 object MarketDataRepository {
     suspend fun getQuoteResult(codes: List<String>): MarketDataResult<List<StockInfo>> {
         val requestedCodes = codes.distinct()
+        if (requestedCodes.isEmpty()) return MarketDataResult.Success(emptyList(), "多源 quote")
         val primary = TencentStockApi.getQuoteResult(requestedCodes)
         val warnings = mutableListOf<String>()
 
@@ -24,16 +30,16 @@ object MarketDataRepository {
                         } else {
                             "${primary.source} + ${secondary.source}"
                         }
-                        return MarketDataResult.Success(merged.values.toList(), source, warnings)
+                        return successAndCache(requestedCodes, merged.values.toList(), source, warnings)
                     }
                     is MarketDataResult.Failure -> {
                         warnings += primary.warnings
                         warnings += "新浪补全失败：${secondary.message}"
-                        return MarketDataResult.Success(primary.data, primary.source, warnings)
+                        return successAndCache(requestedCodes, primary.data, primary.source, warnings)
                     }
                 }
             }
-            return primary
+            return successAndCache(requestedCodes, primary.data, primary.source, primary.warnings)
         }
 
         warnings += when (primary) {
@@ -44,13 +50,17 @@ object MarketDataRepository {
         return when (val secondary = SinaStockApi.getQuoteResult(requestedCodes)) {
             is MarketDataResult.Success -> {
                 if (secondary.data.isEmpty()) {
-                    MarketDataResult.Failure("行情源均无可用 quote：${(warnings + "${secondary.source} 返回空行情").joinToString("；")}")
+                    cachedQuoteResult(
+                        requestedCodes,
+                        warnings + "${secondary.source} 返回空行情",
+                        "行情源均无可用 quote"
+                    )
                 } else {
-                    MarketDataResult.Success(secondary.data, secondary.source, warnings + secondary.warnings)
+                    successAndCache(requestedCodes, secondary.data, secondary.source, warnings + secondary.warnings)
                 }
             }
             is MarketDataResult.Failure -> {
-                MarketDataResult.Failure("行情源均不可用：${(warnings + secondary.message).joinToString("；")}")
+                cachedQuoteResult(requestedCodes, warnings + secondary.message, "行情源均不可用")
             }
         }
     }
@@ -121,4 +131,45 @@ object MarketDataRepository {
     suspend fun getMovingAverages(codes: List<String>): Map<String, MovingAverageInfo> {
         return getMovingAveragesResult(codes).getOrNull().orEmpty()
     }
+
+    private suspend fun successAndCache(
+        requestedCodes: List<String>,
+        stocks: List<StockInfo>,
+        source: String,
+        warnings: List<String>
+    ): MarketDataResult.Success<List<StockInfo>> {
+        val orderedStocks = orderByRequestedCodes(requestedCodes, stocks)
+        LocalStateRepository.saveStockQuoteCache(orderedStocks, source)
+        return MarketDataResult.Success(orderedStocks, source, warnings.distinct())
+    }
+
+    private suspend fun cachedQuoteResult(
+        requestedCodes: List<String>,
+        warnings: List<String>,
+        failurePrefix: String
+    ): MarketDataResult<List<StockInfo>> {
+        val cached = LocalStateRepository.getCachedStockQuotes(requestedCodes)
+            ?: return MarketDataResult.Failure("$failurePrefix：${warnings.joinToString("；")}")
+        return MarketDataResult.Success(
+            data = cached.stocks,
+            source = CACHE_SOURCE_NAME,
+            warnings = (warnings + cached.warningText()).distinct()
+        )
+    }
+
+    private fun orderByRequestedCodes(requestedCodes: List<String>, stocks: List<StockInfo>): List<StockInfo> {
+        val byCode = stocks.associateBy { it.code }
+        return requestedCodes.mapNotNull { byCode[it] } + stocks.filterNot { it.code in requestedCodes.toSet() }
+    }
+
+    private fun CachedStockQuoteSnapshot.warningText(): String {
+        val originalSourceText = originalSources.joinToString(" + ").ifBlank { "未知来源" }
+        return "实时行情源不可用，展示 ${formatCacheTime(fetchedAt)} 的本机缓存；原始来源：$originalSourceText"
+    }
+
+    private fun formatCacheTime(timestamp: Long): String {
+        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(Date(timestamp))
+    }
+
+    private const val CACHE_SOURCE_NAME = "本机行情缓存"
 }

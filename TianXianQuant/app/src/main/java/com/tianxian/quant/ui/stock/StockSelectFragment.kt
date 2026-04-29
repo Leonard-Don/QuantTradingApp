@@ -19,6 +19,8 @@ import com.tianxian.quant.R
 import com.tianxian.quant.databinding.FragmentStockSelectBinding
 import com.tianxian.quant.model.StockFilterCriteria
 import com.tianxian.quant.model.StockInfo
+import com.tianxian.quant.model.StockResearchPolicy
+import com.tianxian.quant.model.StockResearchReport
 import com.tianxian.quant.ui.vip.VipActivity
 import com.tianxian.quant.viewmodel.StockSelectViewModel
 import java.util.Locale
@@ -237,8 +239,44 @@ class StockSelectFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(stock.name)
             .setMessage(message)
-            .setPositiveButton("关闭", null)
+            .setPositiveButton(getString(R.string.stock_research_button)) { _, _ ->
+                showStockResearchReport(stock)
+            }
+            .setNegativeButton(getString(R.string.dialog_close), null)
             .show()
+    }
+
+    private fun showStockResearchReport(stock: StockInfo) {
+        if (viewModel.isVipActive.value != true) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.stock_research_locked_title))
+                .setMessage(getString(R.string.stock_research_locked_message, stock.name))
+                .setPositiveButton(getString(R.string.review_open_vip)) { _, _ ->
+                    openStockSubscription()
+                }
+                .setNegativeButton(getString(R.string.dialog_close), null)
+                .show()
+            return
+        }
+
+        val report = StockResearchPolicy.evaluate(stock)
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.stock_research_title, stock.name))
+            .setMessage(buildStockResearchText(report))
+            .setPositiveButton(getString(R.string.dialog_close), null)
+            .show()
+    }
+
+    private fun buildStockResearchText(report: StockResearchReport): String {
+        val risks = report.riskItems.joinToString("\n") { "· $it" }
+        val actions = report.researchActions.joinToString("\n") { "· $it" }
+        return "研究评分：${report.score}/100（${report.grade}）\n" +
+            "趋势：${report.trendText}\n" +
+            "估值：${report.valuationText}\n" +
+            "流动性：${report.liquidityText}\n\n" +
+            "风险雷达：\n$risks\n\n" +
+            "建议研究动作：\n$actions\n\n" +
+            "说明：个股诊断只做行情字段研究和风险识别，不构成投资建议或交易指令。"
     }
 
     private fun openStockSubscription(pendingFilter: String? = null) {

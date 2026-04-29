@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
 import com.tianxian.quant.databinding.FragmentQuantBinding
+import com.tianxian.quant.model.QuantDiagnosticReport
 import com.tianxian.quant.model.Strategy
 import com.tianxian.quant.ui.vip.VipActivity
 import com.tianxian.quant.viewmodel.QuantViewModel
@@ -25,6 +26,7 @@ class QuantFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: QuantViewModel by viewModels()
     private lateinit var adapter: StrategyAdapter
+    private var currentDiagnosticReport: QuantDiagnosticReport? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,6 +42,7 @@ class QuantFragment : Fragment() {
         setupRecyclerView()
         setupSwipeRefresh()
         setupFab()
+        setupDiagnosticAction()
         observeData()
     }
 
@@ -66,12 +69,19 @@ class QuantFragment : Fragment() {
         }
     }
 
+    private fun setupDiagnosticAction() {
+        binding.btnQuantDiagnostic.setOnClickListener {
+            showDiagnosticReport()
+        }
+    }
+
     private fun observeData() {
         viewModel.strategies.observe(viewLifecycleOwner) { strategies ->
             adapter.submitList(strategies)
         }
         viewModel.isVipActive.observe(viewLifecycleOwner) { active ->
             adapter.setVipActive(active)
+            updateDiagnosticButton()
         }
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.swipeRefresh.isRefreshing = isLoading
@@ -92,6 +102,19 @@ class QuantFragment : Fragment() {
                         signal.factors.joinToString(" · ")
                 }
             }
+        }
+        viewModel.diagnosticReport.observe(viewLifecycleOwner) { report ->
+            currentDiagnosticReport = report
+            updateDiagnosticButton()
+        }
+    }
+
+    private fun updateDiagnosticButton() {
+        val report = currentDiagnosticReport
+        binding.btnQuantDiagnostic.text = if (viewModel.isVipActive.value == true && report != null) {
+            getString(R.string.quant_diagnostic_button_score, report.score)
+        } else {
+            getString(R.string.quant_diagnostic_button_locked)
         }
     }
 
@@ -227,6 +250,52 @@ class QuantFragment : Fragment() {
             .setMessage(message)
             .setPositiveButton("确定") { _, _ -> viewModel.clearBacktestResult() }
             .show()
+    }
+
+    private fun showDiagnosticReport() {
+        if (viewModel.isVipActive.value != true) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.quant_diagnostic_locked_title))
+                .setMessage(getString(R.string.quant_diagnostic_locked_message))
+                .setPositiveButton(getString(R.string.quant_diagnostic_open_vip)) { _, _ ->
+                    openQuantSubscription()
+                }
+                .setNegativeButton(getString(R.string.dialog_close), null)
+                .show()
+            return
+        }
+
+        val report = currentDiagnosticReport
+        if (report == null) {
+            Toast.makeText(requireContext(), getString(R.string.quant_diagnostic_loading), Toast.LENGTH_LONG).show()
+            viewModel.loadStrategies()
+            return
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.quant_diagnostic_title))
+            .setMessage(buildDiagnosticText(report))
+            .setPositiveButton(getString(R.string.quant_diagnostic_refresh)) { _, _ ->
+                viewModel.loadStrategies()
+            }
+            .setNegativeButton(getString(R.string.dialog_close), null)
+            .show()
+    }
+
+    private fun buildDiagnosticText(report: QuantDiagnosticReport): String {
+        val risks = report.riskItems.joinToString("\n") { "· $it" }
+        val highlights = report.highlightStrategies.joinToString("\n") {
+            "· ${it.name}：胜率 ${String.format(Locale.CHINA, "%.1f", it.winRate)}%，回撤 ${String.format(Locale.CHINA, "%.1f", it.maxDrawdown)}%，夏普 ${String.format(Locale.CHINA, "%.2f", it.sharpeRatio)}"
+        }.ifBlank { "· 暂无可展示模型。" }
+        val actions = report.researchActions.joinToString("\n") { "· $it" }
+
+        return "诊断评分：${report.score}/100（${report.grade}）\n" +
+            "${report.strategyCoverageText}\n" +
+            "${report.signalCoverageText}\n\n" +
+            "风险雷达：\n$risks\n\n" +
+            "重点模型：\n$highlights\n\n" +
+            "建议研究动作：\n$actions\n\n" +
+            "说明：模型诊断只做历史样本研究和风险识别，不构成投资建议或交易指令。"
     }
 
     private fun showCreateStrategyDialog() {

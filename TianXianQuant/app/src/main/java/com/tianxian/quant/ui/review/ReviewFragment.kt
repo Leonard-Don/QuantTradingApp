@@ -12,6 +12,7 @@ import com.tianxian.quant.databinding.FragmentReviewBinding
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
 import com.tianxian.quant.model.StockInfo
+import com.tianxian.quant.model.WatchlistHealthReport
 import com.tianxian.quant.ui.vip.VipActivity
 import com.tianxian.quant.viewmodel.ReviewViewModel
 import kotlin.math.abs
@@ -47,7 +48,7 @@ class ReviewFragment : Fragment() {
     }
 
     private fun setupTabs() {
-        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯")
+        val tabs = listOf("市场总览", "板块轮动", "资金流向", "龙虎榜", "历史回溯", "自选体检")
         tabs.forEach { tab ->
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText(tab))
         }
@@ -122,6 +123,10 @@ class ReviewFragment : Fragment() {
     private fun renderSelectedTab() {
         if (currentTab == 4) {
             renderHistoryTab()
+            return
+        }
+        if (currentTab == 5) {
+            renderWatchlistHealthTab()
             return
         }
 
@@ -263,6 +268,53 @@ class ReviewFragment : Fragment() {
         }
     }
 
+    private fun renderWatchlistHealthTab() {
+        binding.tvReviewSectionTitle.text = getString(R.string.review_watchlist_health_title)
+        if (!isVipActive) {
+            binding.tvHotSectors.text = getString(R.string.review_watchlist_health_locked)
+            binding.btnReviewAction.visibility = View.VISIBLE
+            binding.btnReviewAction.text = getString(R.string.review_open_vip)
+            binding.btnReviewAction.setOnClickListener {
+                startActivity(VipActivity.createIntent(requireContext(), finishOnSuccess = true))
+            }
+            return
+        }
+
+        binding.btnReviewAction.visibility = View.VISIBLE
+        binding.btnReviewAction.text = getString(R.string.review_refresh_snapshot)
+        binding.btnReviewAction.setOnClickListener {
+            viewModel.refresh()
+        }
+
+        val data = currentReviewData
+        val report = data?.watchlistHealthReport
+        binding.tvHotSectors.text = if (data == null) {
+            "正在加载自选池体检数据。"
+        } else if (report == null) {
+            "暂无可体检的自选样本。请先在选股页点星标加入自选池，复盘页会基于自选池同步生成 VIP 体检报告。"
+        } else {
+            buildWatchlistHealthText(report)
+        }
+    }
+
+    private fun buildWatchlistHealthText(report: WatchlistHealthReport): String {
+        val risks = report.riskItems.joinToString("\n") { "· $it" }
+        val focus = report.focusStocks.joinToString("\n") {
+            "· ${it.name}(${it.code})：涨跌 ${formatPercent(it.changePercent)}，成交额 ${priceFormat.format(it.turnover)}亿，PE ${formatNullableMetric(it.pe)}，PB ${formatNullableMetric(it.pb)}"
+        }.ifBlank { "· 暂无重点样本。" }
+        val actions = report.researchActions.joinToString("\n") { "· $it" }
+
+        return "健康评分：${report.score}/100（${report.grade}）\n" +
+            "${report.breadthText}\n" +
+            "集中度：${report.concentrationText}\n" +
+            "估值：${report.valuationText}\n" +
+            "趋势：${report.trendText}\n\n" +
+            "风险雷达：\n$risks\n\n" +
+            "重点复盘样本：\n$focus\n\n" +
+            "建议研究动作：\n$actions\n\n" +
+            "说明：以上为本机自选池研究体检，不构成投资建议或交易指令。"
+    }
+
     private fun buildHistorySummary(history: List<ReviewSnapshot>): String {
         val latest = history.first()
         val base = buildString {
@@ -306,6 +358,10 @@ class ReviewFragment : Fragment() {
 
     private fun formatAmountDelta(value: Double): String {
         return "${if (value >= 0) "+" else ""}${priceFormat.format(value)}亿"
+    }
+
+    private fun formatNullableMetric(value: Double): String {
+        return if (value > 0) priceFormat.format(value) else "暂无"
     }
 
     override fun onResume() {

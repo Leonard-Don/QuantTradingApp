@@ -74,6 +74,29 @@ data class StockWatchlistEntity(
     val createdAt: Long
 )
 
+@Entity(tableName = "stock_quote_cache")
+data class StockQuoteCacheEntity(
+    @PrimaryKey val code: String,
+    val name: String,
+    val price: Double,
+    val changePercent: Double,
+    val volume: Long,
+    val marketCap: Double,
+    val pe: Double,
+    val pb: Double,
+    val industry: String,
+    val turnover: Double,
+    val high: Double,
+    val low: Double,
+    val open: Double,
+    val yesterdayClose: Double,
+    val ma5: Double,
+    val ma10: Double,
+    val ma20: Double,
+    val source: String,
+    val fetchedAt: Long
+)
+
 @Entity(tableName = "custom_strategies")
 data class StrategyEntity(
     @PrimaryKey val id: String,
@@ -168,6 +191,18 @@ interface StockWatchlistDao {
 }
 
 @Dao
+interface StockQuoteCacheDao {
+    @Query("SELECT * FROM stock_quote_cache WHERE code IN (:codes)")
+    suspend fun getByCodes(codes: List<String>): List<StockQuoteCacheEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveAll(stocks: List<StockQuoteCacheEntity>)
+
+    @Query("DELETE FROM stock_quote_cache WHERE fetchedAt < :minFetchedAt")
+    suspend fun deleteOlderThan(minFetchedAt: Long)
+}
+
+@Dao
 interface StrategyDao {
     @Query("SELECT * FROM custom_strategies ORDER BY createdAt DESC")
     suspend fun getCustomStrategies(): List<StrategyEntity>
@@ -192,10 +227,11 @@ interface ReviewSnapshotDao {
         PostCommentEntity::class,
         StockFilterEntity::class,
         StockWatchlistEntity::class,
+        StockQuoteCacheEntity::class,
         StrategyEntity::class,
         ReviewSnapshotEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -204,6 +240,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun postCommentDao(): PostCommentDao
     abstract fun stockFilterDao(): StockFilterDao
     abstract fun stockWatchlistDao(): StockWatchlistDao
+    abstract fun stockQuoteCacheDao(): StockQuoteCacheDao
     abstract fun strategyDao(): StrategyDao
     abstract fun reviewSnapshotDao(): ReviewSnapshotDao
 
@@ -221,17 +258,17 @@ abstract class AppDatabase : RoomDatabase() {
 const val LOCAL_USER_ID = "local_user"
 const val DEFAULT_FILTER_ID = "default"
 
-val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until 8)
+val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until 9)
     .map { startVersion ->
-        object : Migration(startVersion, 8) {
+        object : Migration(startVersion, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                migrateToVersion8(db)
+                migrateToCurrentVersion(db)
             }
         }
     }
     .toTypedArray()
 
-private fun migrateToVersion8(db: SupportSQLiteDatabase) {
+private fun migrateToCurrentVersion(db: SupportSQLiteDatabase) {
     CURRENT_TABLES.forEach { table ->
         rebuildTableToCurrentSchema(db, table)
     }
@@ -414,6 +451,37 @@ private val CURRENT_TABLES = listOf(
             textColumn("name", ""),
             textColumn("industry", ""),
             intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "stock_quote_cache",
+        columnsSql = "`code` TEXT NOT NULL, `name` TEXT NOT NULL, `price` REAL NOT NULL, " +
+            "`changePercent` REAL NOT NULL, `volume` INTEGER NOT NULL, `marketCap` REAL NOT NULL, " +
+            "`pe` REAL NOT NULL, `pb` REAL NOT NULL, `industry` TEXT NOT NULL, " +
+            "`turnover` REAL NOT NULL, `high` REAL NOT NULL, `low` REAL NOT NULL, " +
+            "`open` REAL NOT NULL, `yesterdayClose` REAL NOT NULL, `ma5` REAL NOT NULL, " +
+            "`ma10` REAL NOT NULL, `ma20` REAL NOT NULL, `source` TEXT NOT NULL, " +
+            "`fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`code`)",
+        columns = listOf(
+            textColumn("code", ""),
+            textColumn("name", ""),
+            realColumn("price"),
+            realColumn("changePercent"),
+            intColumn("volume"),
+            realColumn("marketCap"),
+            realColumn("pe"),
+            realColumn("pb"),
+            textColumn("industry", "未分类"),
+            realColumn("turnover"),
+            realColumn("high"),
+            realColumn("low"),
+            realColumn("open"),
+            realColumn("yesterdayClose"),
+            realColumn("ma5"),
+            realColumn("ma10"),
+            realColumn("ma20"),
+            textColumn("source", ""),
+            intColumn("fetchedAt")
         )
     ),
     TableSpec(

@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">天线量化</string>
+    <string name="dialog_close">关闭</string>
 
     <!-- Tabs -->
     <string name="tab_stock">选股</string>
@@ -32,6 +33,10 @@
     <string name="stock_pb_summary">PB %1$s</string>
     <string name="stock_quote_summary_with_valuation">%1$s %2$s</string>
     <string name="stock_moving_average_summary">MA5 %1$s · MA10 %2$s · MA20 %3$s</string>
+    <string name="stock_research_button">深度诊断(VIP)</string>
+    <string name="stock_research_title">%1$s VIP深度诊断</string>
+    <string name="stock_research_locked_title">开通选股 VIP</string>
+    <string name="stock_research_locked_message">%1$s 的深度诊断为选股 VIP 功能：订阅后可查看趋势结构、估值状态、流动性、风险雷达和后续研究动作。\n\n说明：诊断只做行情字段研究和风险识别，不给出具体买卖指令。</string>
 
     <!-- Review -->
     <string name="market_summary">市场概况</string>
@@ -47,6 +52,8 @@
     <string name="review_history_vip_locked">历史回溯为 VIP 功能。开通任一 VIP 后，可查看本机保存的复盘快照、样本强弱变化和板块记录。</string>
     <string name="review_open_vip">去开通 VIP</string>
     <string name="review_refresh_snapshot">刷新样本快照</string>
+    <string name="review_watchlist_health_title">VIP自选池体检</string>
+    <string name="review_watchlist_health_locked">自选池体检为 VIP 功能：订阅后可基于本机自选池、多源行情和均线数据，查看组合健康评分、行业集中度、趋势压力、估值异常和后续研究动作。\n\n说明：体检只做研究记录和风险识别，不给出具体买卖指令。</string>
 
     <!-- Community -->
     <string name="new_post">发布帖子</string>
@@ -60,6 +67,9 @@
     <string name="community_post_content_hint">内容</string>
     <string name="community_post_vip_only">发布为 VIP 专属内容</string>
     <string name="community_post_notice">提示：发布内容需遵守社区规范，不得包含具体交易指令、夸大结果承诺或代理操作资金内容。VIP 专属内容仅作为订阅用户的私密圈子交流记录。</string>
+    <string name="community_digest_button">研究纪要(VIP)</string>
+    <string name="community_digest_locked_title">开通社区 VIP 纪要</string>
+    <string name="community_digest_locked_message">研究纪要为 VIP 功能：订阅后可把帖子正文和本机评论整理为复盘摘要、讨论焦点、合规风险和后续研究动作。\n\n说明：纪要只做研究沉淀，不给出具体买卖指令。</string>
 
     <!-- Auth -->
     <string name="auth_title">登录/注册</string>
@@ -94,6 +104,14 @@
     <string name="backtest">历史模拟(VIP)</string>
     <string name="create_strategy">创建模型</string>
     <string name="quant_signal_title">模型信号观察</string>
+    <string name="quant_diagnostic_button_locked">模型诊断(VIP)</string>
+    <string name="quant_diagnostic_button_score">模型诊断：%1$d分</string>
+    <string name="quant_diagnostic_title">VIP模型诊断</string>
+    <string name="quant_diagnostic_locked_title">开通量化 VIP</string>
+    <string name="quant_diagnostic_locked_message">模型诊断报告为量化 VIP 功能：订阅后可综合策略库、公式覆盖、历史样本指标和实时模型信号，查看评分、风险雷达、重点模型和后续研究动作。\n\n说明：诊断只做历史样本研究和风险识别，不给出具体买卖指令。</string>
+    <string name="quant_diagnostic_open_vip">去订阅</string>
+    <string name="quant_diagnostic_refresh">刷新诊断</string>
+    <string name="quant_diagnostic_loading">模型诊断暂不可用，正在刷新样本数据。</string>
     <string name="backtest_config_notice">回测为历史模拟研究工具，请输入 yyyy-MM-dd 格式日期。</string>
     <string name="backtest_start_date_hint">开始日期</string>
     <string name="backtest_end_date_hint">结束日期</string>

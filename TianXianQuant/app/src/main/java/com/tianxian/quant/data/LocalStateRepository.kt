@@ -14,6 +14,12 @@ import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
 
+data class CachedStockQuoteSnapshot(
+    val stocks: List<StockInfo>,
+    val fetchedAt: Long,
+    val originalSources: List<String>
+)
+
 object LocalStateRepository {
     private val db get() = AppDatabase.instance
 
@@ -181,6 +187,37 @@ object LocalStateRepository {
         db.stockWatchlistDao().delete(code)
     }
 
+    suspend fun saveStockQuoteCache(
+        stocks: List<StockInfo>,
+        source: String,
+        fetchedAt: Long = System.currentTimeMillis()
+    ) {
+        if (stocks.isEmpty()) return
+        db.stockQuoteCacheDao().saveAll(stocks.map { it.toQuoteCacheEntity(source, fetchedAt) })
+        db.stockQuoteCacheDao().deleteOlderThan(fetchedAt - QUOTE_CACHE_MAX_AGE_MILLIS)
+    }
+
+    suspend fun getCachedStockQuotes(
+        codes: List<String>,
+        now: Long = System.currentTimeMillis()
+    ): CachedStockQuoteSnapshot? {
+        val requestedCodes = codes.distinct()
+        if (requestedCodes.isEmpty()) return null
+        val minFetchedAt = now - QUOTE_CACHE_MAX_AGE_MILLIS
+        val rowsByCode = db.stockQuoteCacheDao()
+            .getByCodes(requestedCodes)
+            .filter { it.fetchedAt >= minFetchedAt }
+            .associateBy { it.code }
+        if (rowsByCode.isEmpty()) return null
+
+        val rows = requestedCodes.mapNotNull { rowsByCode[it] }
+        return CachedStockQuoteSnapshot(
+            stocks = rows.map { it.toStockInfo() },
+            fetchedAt = rows.minOf { it.fetchedAt },
+            originalSources = rows.map { it.source }.filter { it.isNotBlank() }.distinct()
+        )
+    }
+
     suspend fun getCustomStrategies(): List<Strategy> {
         return db.strategyDao().getCustomStrategies().map { it.toStrategy() }
     }
@@ -261,6 +298,52 @@ object LocalStateRepository {
             maxPe = maxPe,
             maxPb = maxPb,
             minMarketCap = minMarketCap
+        )
+    }
+
+    private fun StockInfo.toQuoteCacheEntity(source: String, fetchedAt: Long): StockQuoteCacheEntity {
+        return StockQuoteCacheEntity(
+            code = code,
+            name = name,
+            price = price,
+            changePercent = changePercent,
+            volume = volume,
+            marketCap = marketCap,
+            pe = pe,
+            pb = pb,
+            industry = industry,
+            turnover = turnover,
+            high = high,
+            low = low,
+            open = open,
+            yesterdayClose = yesterdayClose,
+            ma5 = ma5,
+            ma10 = ma10,
+            ma20 = ma20,
+            source = source,
+            fetchedAt = fetchedAt
+        )
+    }
+
+    private fun StockQuoteCacheEntity.toStockInfo(): StockInfo {
+        return StockInfo(
+            code = code,
+            name = name,
+            price = price,
+            changePercent = changePercent,
+            volume = volume,
+            marketCap = marketCap,
+            pe = pe,
+            pb = pb,
+            industry = industry,
+            turnover = turnover,
+            high = high,
+            low = low,
+            open = open,
+            yesterdayClose = yesterdayClose,
+            ma5 = ma5,
+            ma10 = ma10,
+            ma20 = ma20
         )
     }
 
@@ -356,4 +439,6 @@ object LocalStateRepository {
     private fun isActive(expireTime: Long): Boolean {
         return expireTime > System.currentTimeMillis()
     }
+
+    private const val QUOTE_CACHE_MAX_AGE_MILLIS = 7L * 24L * 60L * 60L * 1000L
 }

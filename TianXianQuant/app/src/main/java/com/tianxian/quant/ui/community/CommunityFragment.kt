@@ -20,6 +20,8 @@ import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
 import com.tianxian.quant.data.LocalStateRepository
 import com.tianxian.quant.databinding.FragmentCommunityBinding
+import com.tianxian.quant.model.CommunityDigestPolicy
+import com.tianxian.quant.model.CommunityDigestReport
 import com.tianxian.quant.model.Post
 import com.tianxian.quant.model.PostComment
 import com.tianxian.quant.ui.auth.AuthActivity
@@ -209,12 +211,11 @@ class CommunityFragment : Fragment() {
             AlertDialog.Builder(requireContext())
                 .setTitle(post.title)
                 .setMessage(buildPostDetailMessage(post, comments))
-                .setPositiveButton("评论") { _, _ -> showCommentDialog(post) }
-                .setNeutralButton("点赞") { _, _ ->
-                    viewModel.likePost(post.id)
-                    Toast.makeText(requireContext(), "点赞成功", Toast.LENGTH_SHORT).show()
+                .setPositiveButton(getString(R.string.community_digest_button)) { _, _ ->
+                    showCommunityDigest(post, comments)
                 }
-                .setNegativeButton("关闭", null)
+                .setNeutralButton(getString(R.string.comment)) { _, _ -> showCommentDialog(post) }
+                .setNegativeButton(getString(R.string.dialog_close), null)
                 .show()
         }
     }
@@ -228,6 +229,38 @@ class CommunityFragment : Fragment() {
             }
         }
         return "${post.content}\n\n作者：${post.author}\n时间：${post.time}\n点赞：${post.likes}  评论：${post.comments}\n\n本机评论：\n$localComments"
+    }
+
+    private fun showCommunityDigest(post: Post, comments: List<PostComment>) {
+        if (viewModel.isVipActive.value != true) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.community_digest_locked_title))
+                .setMessage(getString(R.string.community_digest_locked_message))
+                .setPositiveButton(getString(R.string.quant_diagnostic_open_vip)) { _, _ ->
+                    openCommunitySubscription(post)
+                }
+                .setNegativeButton(getString(R.string.dialog_close), null)
+                .show()
+            return
+        }
+
+        val report = CommunityDigestPolicy.build(post, comments)
+        AlertDialog.Builder(requireContext())
+            .setTitle(report.title)
+            .setMessage(buildCommunityDigestText(report))
+            .setPositiveButton(getString(R.string.dialog_close), null)
+            .show()
+    }
+
+    private fun buildCommunityDigestText(report: CommunityDigestReport): String {
+        val points = report.keyPoints.joinToString("\n") { "· $it" }
+        val risks = report.riskNotes.joinToString("\n") { "· $it" }
+        val actions = report.researchActions.joinToString("\n") { "· $it" }
+        return "${report.summary}\n\n" +
+            "纪要要点：\n$points\n\n" +
+            "合规与风险提醒：\n$risks\n\n" +
+            "后续研究动作：\n$actions\n\n" +
+            "说明：研究纪要只用于复盘沉淀和社区讨论，不构成投资建议或交易指令。"
     }
 
     private fun showCommentDialog(post: Post) {
