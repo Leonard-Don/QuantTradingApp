@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 大平板更大间距 -->
+    <!-- 卡片更大 -->
+    <dimen name="card_margin">16dp</dimen>
+    <dimen name="card_padding">24dp</dimen>
+
+    <!-- 文字更大 -->
+    <dimen name="text_md">18sp</dimen>
+    <dimen name="text_lg">20sp</dimen>
+    <dimen name="text_xl">24sp</dimen>
+    <!-- 大平板用3列网格 -->
+    <integer name="stock_grid_span">3</integer>
+</resources>

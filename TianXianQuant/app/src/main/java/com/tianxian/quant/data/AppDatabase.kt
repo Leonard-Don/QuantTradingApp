@@ -1,0 +1,460 @@
+package com.tianxian.quant.data
+
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.tianxian.quant.MyApp
+
+@Entity(tableName = "user_state")
+data class UserStateEntity(
+    @PrimaryKey val id: String = LOCAL_USER_ID,
+    val displayName: String = "本机用户",
+    val phone: String? = null,
+    val passwordHash: String? = null,
+    val isLoggedIn: Boolean = false,
+    val isVip: Boolean = false,
+    val vipExpireTime: Long = 0L,
+    val stockVipExpireTime: Long = 0L,
+    val quantVipExpireTime: Long = 0L,
+    val notificationsEnabled: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastLoginAt: Long = 0L
+)
+
+@Entity(tableName = "posts")
+data class PostEntity(
+    @PrimaryKey val id: String,
+    val author: String,
+    val title: String,
+    val content: String,
+    val timeLabel: String,
+    val likes: Int,
+    val comments: Int,
+    val category: String,
+    val isVip: Boolean,
+    val createdAt: Long
+)
+
+@Entity(tableName = "post_comments")
+data class PostCommentEntity(
+    @PrimaryKey val id: String,
+    val postId: String,
+    val author: String,
+    val content: String,
+    val timeLabel: String,
+    val createdAt: Long
+)
+
+@Entity(tableName = "stock_filter")
+data class StockFilterEntity(
+    @PrimaryKey val id: String = DEFAULT_FILTER_ID,
+    val sortMode: String = "全部",
+    val industry: String? = null,
+    val minChangePercent: Double? = null,
+    val minVolume: Long? = null,
+    val minTurnover: Double? = null,
+    val maxPe: Double? = null,
+    val maxPb: Double? = null,
+    val minMarketCap: Double? = null
+)
+
+@Entity(tableName = "stock_watchlist")
+data class StockWatchlistEntity(
+    @PrimaryKey val code: String,
+    val name: String,
+    val industry: String,
+    val createdAt: Long
+)
+
+@Entity(tableName = "custom_strategies")
+data class StrategyEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String,
+    val winRate: Double,
+    val maxDrawdown: Double,
+    val sharpeRatio: Double,
+    val annualReturn: Double,
+    val totalTrades: Int,
+    val profitFactor: Double,
+    val isVip: Boolean,
+    val formula: String,
+    val tagsCsv: String,
+    val createdAt: Long
+)
+
+@Entity(tableName = "review_snapshots")
+data class ReviewSnapshotEntity(
+    @PrimaryKey val date: String,
+    val upCount: Int,
+    val downCount: Int,
+    val limitUpCount: Int,
+    val limitDownCount: Int,
+    val totalAmount: Double,
+    val sectorSummary: String,
+    val strongStockSummary: String,
+    val createdAt: Long
+)
+
+@Dao
+interface UserStateDao {
+    @Query("SELECT * FROM user_state WHERE id = :id LIMIT 1")
+    suspend fun get(id: String = LOCAL_USER_ID): UserStateEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(entity: UserStateEntity)
+}
+
+@Dao
+interface PostDao {
+    @Query("SELECT * FROM posts ORDER BY createdAt DESC")
+    suspend fun getAll(): List<PostEntity>
+
+    @Query("SELECT COUNT(*) FROM posts")
+    suspend fun count(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveAll(posts: List<PostEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(post: PostEntity)
+
+    @Query("UPDATE posts SET likes = likes + 1 WHERE id = :postId")
+    suspend fun like(postId: String)
+
+    @Query("UPDATE posts SET comments = comments + 1 WHERE id = :postId")
+    suspend fun incrementComments(postId: String)
+}
+
+@Dao
+interface PostCommentDao {
+    @Query("SELECT * FROM post_comments WHERE postId = :postId ORDER BY createdAt DESC")
+    suspend fun getByPost(postId: String): List<PostCommentEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(comment: PostCommentEntity)
+}
+
+@Dao
+interface StockFilterDao {
+    @Query("SELECT * FROM stock_filter WHERE id = :id LIMIT 1")
+    suspend fun get(id: String = DEFAULT_FILTER_ID): StockFilterEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(filter: StockFilterEntity)
+}
+
+@Dao
+interface StockWatchlistDao {
+    @Query("SELECT * FROM stock_watchlist ORDER BY createdAt DESC")
+    suspend fun getAll(): List<StockWatchlistEntity>
+
+    @Query("SELECT code FROM stock_watchlist ORDER BY createdAt DESC")
+    suspend fun getCodes(): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(stock: StockWatchlistEntity)
+
+    @Query("DELETE FROM stock_watchlist WHERE code = :code")
+    suspend fun delete(code: String)
+}
+
+@Dao
+interface StrategyDao {
+    @Query("SELECT * FROM custom_strategies ORDER BY createdAt DESC")
+    suspend fun getCustomStrategies(): List<StrategyEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(strategy: StrategyEntity)
+}
+
+@Dao
+interface ReviewSnapshotDao {
+    @Query("SELECT * FROM review_snapshots ORDER BY date DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int = 20): List<ReviewSnapshotEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(snapshot: ReviewSnapshotEntity)
+}
+
+@Database(
+    entities = [
+        UserStateEntity::class,
+        PostEntity::class,
+        PostCommentEntity::class,
+        StockFilterEntity::class,
+        StockWatchlistEntity::class,
+        StrategyEntity::class,
+        ReviewSnapshotEntity::class
+    ],
+    version = 8,
+    exportSchema = true
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun userStateDao(): UserStateDao
+    abstract fun postDao(): PostDao
+    abstract fun postCommentDao(): PostCommentDao
+    abstract fun stockFilterDao(): StockFilterDao
+    abstract fun stockWatchlistDao(): StockWatchlistDao
+    abstract fun strategyDao(): StrategyDao
+    abstract fun reviewSnapshotDao(): ReviewSnapshotDao
+
+    companion object {
+        val instance: AppDatabase by lazy {
+            Room.databaseBuilder(
+                MyApp.instance,
+                AppDatabase::class.java,
+                "tianxian_quant.db"
+            ).addMigrations(*APP_DATABASE_MIGRATIONS).build()
+        }
+    }
+}
+
+const val LOCAL_USER_ID = "local_user"
+const val DEFAULT_FILTER_ID = "default"
+
+val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until 8)
+    .map { startVersion ->
+        object : Migration(startVersion, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                migrateToVersion8(db)
+            }
+        }
+    }
+    .toTypedArray()
+
+private fun migrateToVersion8(db: SupportSQLiteDatabase) {
+    CURRENT_TABLES.forEach { table ->
+        rebuildTableToCurrentSchema(db, table)
+    }
+}
+
+private fun rebuildTableToCurrentSchema(db: SupportSQLiteDatabase, table: TableSpec) {
+    if (!tableExists(db, table.name)) {
+        db.execSQL(table.createSql(table.name))
+        return
+    }
+
+    val existingColumns = columnNames(db, table.name)
+    val tempName = "${table.name}_migration_new"
+    db.execSQL("DROP TABLE IF EXISTS ${quoteIdentifier(tempName)}")
+    db.execSQL(table.createSql(tempName))
+
+    val insertColumns = table.columns.joinToString(", ") { quoteIdentifier(it.name) }
+    val selectColumns = table.columns.joinToString(", ") { it.selectExpression(existingColumns) }
+    db.execSQL(
+        "INSERT OR REPLACE INTO ${quoteIdentifier(tempName)} ($insertColumns) " +
+            "SELECT $selectColumns FROM ${quoteIdentifier(table.name)}"
+    )
+
+    db.execSQL("DROP TABLE ${quoteIdentifier(table.name)}")
+    db.execSQL("ALTER TABLE ${quoteIdentifier(tempName)} RENAME TO ${quoteIdentifier(table.name)}")
+}
+
+private fun tableExists(db: SupportSQLiteDatabase, tableName: String): Boolean {
+    db.query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+        arrayOf(tableName)
+    ).use { cursor ->
+        return cursor.moveToFirst()
+    }
+}
+
+private fun columnNames(db: SupportSQLiteDatabase, tableName: String): Set<String> {
+    val columns = mutableSetOf<String>()
+    db.query("PRAGMA table_info(${quoteIdentifier(tableName)})").use { cursor ->
+        val nameIndex = cursor.getColumnIndex("name")
+        while (cursor.moveToNext()) {
+            columns += cursor.getString(nameIndex)
+        }
+    }
+    return columns
+}
+
+private data class TableSpec(
+    val name: String,
+    val columnsSql: String,
+    val columns: List<ColumnSpec>
+) {
+    fun createSql(tableName: String): String =
+        "CREATE TABLE IF NOT EXISTS ${quoteIdentifier(tableName)} ($columnsSql)"
+}
+
+private data class ColumnSpec(
+    val name: String,
+    val fallbackExpression: (Set<String>) -> String,
+    val nullable: Boolean = false
+) {
+    fun selectExpression(existingColumns: Set<String>): String {
+        if (name !in existingColumns) return fallbackExpression(existingColumns)
+
+        val currentColumn = quoteIdentifier(name)
+        return if (nullable) {
+            currentColumn
+        } else {
+            "COALESCE($currentColumn, ${fallbackExpression(existingColumns)})"
+        }
+    }
+}
+
+private fun textColumn(name: String, fallback: String): ColumnSpec =
+    ColumnSpec(name, { sqlString(fallback) })
+
+private fun nullableColumn(name: String): ColumnSpec =
+    ColumnSpec(name, { "NULL" }, nullable = true)
+
+private fun intColumn(name: String, fallback: String = "0"): ColumnSpec =
+    ColumnSpec(name, { fallback })
+
+private fun realColumn(name: String, fallback: String = "0.0"): ColumnSpec =
+    ColumnSpec(name, { fallback })
+
+private fun vipExpiryColumn(name: String): ColumnSpec =
+    ColumnSpec(name, { existingColumns ->
+        if ("vipExpireTime" in existingColumns) {
+            "COALESCE(${quoteIdentifier("vipExpireTime")}, 0)"
+        } else {
+            "0"
+        }
+    })
+
+private fun quoteIdentifier(identifier: String): String =
+    "`" + identifier.replace("`", "``") + "`"
+
+private fun sqlString(value: String): String =
+    "'" + value.replace("'", "''") + "'"
+
+private val CURRENT_TABLES = listOf(
+    TableSpec(
+        name = "user_state",
+        columnsSql = "`id` TEXT NOT NULL, `displayName` TEXT NOT NULL, `phone` TEXT, " +
+            "`passwordHash` TEXT, `isLoggedIn` INTEGER NOT NULL, `isVip` INTEGER NOT NULL, " +
+            "`vipExpireTime` INTEGER NOT NULL, `stockVipExpireTime` INTEGER NOT NULL, " +
+            "`quantVipExpireTime` INTEGER NOT NULL, `notificationsEnabled` INTEGER NOT NULL, " +
+            "`createdAt` INTEGER NOT NULL, `lastLoginAt` INTEGER NOT NULL, PRIMARY KEY(`id`)",
+        columns = listOf(
+            textColumn("id", LOCAL_USER_ID),
+            textColumn("displayName", "本机用户"),
+            nullableColumn("phone"),
+            nullableColumn("passwordHash"),
+            intColumn("isLoggedIn"),
+            intColumn("isVip"),
+            intColumn("vipExpireTime"),
+            vipExpiryColumn("stockVipExpireTime"),
+            vipExpiryColumn("quantVipExpireTime"),
+            intColumn("notificationsEnabled"),
+            intColumn("createdAt"),
+            intColumn("lastLoginAt")
+        )
+    ),
+    TableSpec(
+        name = "posts",
+        columnsSql = "`id` TEXT NOT NULL, `author` TEXT NOT NULL, `title` TEXT NOT NULL, " +
+            "`content` TEXT NOT NULL, `timeLabel` TEXT NOT NULL, `likes` INTEGER NOT NULL, " +
+            "`comments` INTEGER NOT NULL, `category` TEXT NOT NULL, `isVip` INTEGER NOT NULL, " +
+            "`createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`)",
+        columns = listOf(
+            textColumn("id", ""),
+            textColumn("author", ""),
+            textColumn("title", ""),
+            textColumn("content", ""),
+            textColumn("timeLabel", ""),
+            intColumn("likes"),
+            intColumn("comments"),
+            textColumn("category", "全部"),
+            intColumn("isVip"),
+            intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "post_comments",
+        columnsSql = "`id` TEXT NOT NULL, `postId` TEXT NOT NULL, `author` TEXT NOT NULL, " +
+            "`content` TEXT NOT NULL, `timeLabel` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
+            "PRIMARY KEY(`id`)",
+        columns = listOf(
+            textColumn("id", ""),
+            textColumn("postId", ""),
+            textColumn("author", ""),
+            textColumn("content", ""),
+            textColumn("timeLabel", ""),
+            intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "stock_filter",
+        columnsSql = "`id` TEXT NOT NULL, `sortMode` TEXT NOT NULL, `industry` TEXT, " +
+            "`minChangePercent` REAL, `minVolume` INTEGER, `minTurnover` REAL, `maxPe` REAL, " +
+            "`maxPb` REAL, `minMarketCap` REAL, PRIMARY KEY(`id`)",
+        columns = listOf(
+            textColumn("id", DEFAULT_FILTER_ID),
+            textColumn("sortMode", "全部"),
+            nullableColumn("industry"),
+            nullableColumn("minChangePercent"),
+            nullableColumn("minVolume"),
+            nullableColumn("minTurnover"),
+            nullableColumn("maxPe"),
+            nullableColumn("maxPb"),
+            nullableColumn("minMarketCap")
+        )
+    ),
+    TableSpec(
+        name = "stock_watchlist",
+        columnsSql = "`code` TEXT NOT NULL, `name` TEXT NOT NULL, `industry` TEXT NOT NULL, " +
+            "`createdAt` INTEGER NOT NULL, PRIMARY KEY(`code`)",
+        columns = listOf(
+            textColumn("code", ""),
+            textColumn("name", ""),
+            textColumn("industry", ""),
+            intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "custom_strategies",
+        columnsSql = "`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, " +
+            "`winRate` REAL NOT NULL, `maxDrawdown` REAL NOT NULL, `sharpeRatio` REAL NOT NULL, " +
+            "`annualReturn` REAL NOT NULL, `totalTrades` INTEGER NOT NULL, " +
+            "`profitFactor` REAL NOT NULL, `isVip` INTEGER NOT NULL, `formula` TEXT NOT NULL, " +
+            "`tagsCsv` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`)",
+        columns = listOf(
+            textColumn("id", ""),
+            textColumn("name", ""),
+            textColumn("description", ""),
+            realColumn("winRate"),
+            realColumn("maxDrawdown"),
+            realColumn("sharpeRatio"),
+            realColumn("annualReturn"),
+            intColumn("totalTrades"),
+            realColumn("profitFactor"),
+            intColumn("isVip"),
+            textColumn("formula", ""),
+            textColumn("tagsCsv", ""),
+            intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "review_snapshots",
+        columnsSql = "`date` TEXT NOT NULL, `upCount` INTEGER NOT NULL, `downCount` INTEGER NOT NULL, " +
+            "`limitUpCount` INTEGER NOT NULL, `limitDownCount` INTEGER NOT NULL, " +
+            "`totalAmount` REAL NOT NULL, `sectorSummary` TEXT NOT NULL, " +
+            "`strongStockSummary` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`date`)",
+        columns = listOf(
+            textColumn("date", ""),
+            intColumn("upCount"),
+            intColumn("downCount"),
+            intColumn("limitUpCount"),
+            intColumn("limitDownCount"),
+            realColumn("totalAmount"),
+            textColumn("sectorSummary", ""),
+            textColumn("strongStockSummary", ""),
+            intColumn("createdAt")
+        )
+    )
+)

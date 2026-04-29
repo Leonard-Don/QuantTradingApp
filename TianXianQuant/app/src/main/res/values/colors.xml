@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary -->
+    <color name="primary">#1A73E8</color>
+    <color name="primary_dark">#1557B0</color>
+    <color name="primary_light">#E8F0FE</color>
+
+    <!-- Accent -->
+    <color name="accent">#FF6B35</color>
+
+    <!-- VIP Tier Colors -->
+    <color name="vip_silver">#78909C</color>
+    <color name="vip_gold">#FFB800</color>
+
+    <!-- VIP Card Background -->
+    <color name="vip_card_gold_bg">#FFFBF0</color>
+    <color name="vip_card_silver_bg">#F8FAFC</color>
+
+    <!-- Background -->
+    <color name="bg_primary">#F5F7FA</color>
+    <color name="white">#FFFFFF</color>
+
+    <!-- Text -->
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+
+    <!-- Stock Colors (Chinese convention: red=up, green=down) -->
+    <color name="stock_up">#E74C3C</color>
+    <color name="stock_down">#2ECC71</color>
+
+    <!-- Chips -->
+    <color name="chip_green">#E8F5E9</color>
+    <color name="chip_red">#FFEBEE</color>
+    <color name="chip_blue">#E3F2FD</color>
+
+    <!-- Navigation -->
+    <color name="bottom_nav_selected">#1A73E8</color>
+    <color name="bottom_nav_unselected">#6B7280</color>
+</resources>

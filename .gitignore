@@ -1,0 +1,19 @@
+.DS_Store
+
+# Android / Gradle
+.gradle/
+.idea/
+**/build/
+local.properties
+*.iml
+TianXianQuant/cover.png
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+
+# TianXian backend runtime data
+backend/data/*.db
+backend/data/*.db-*

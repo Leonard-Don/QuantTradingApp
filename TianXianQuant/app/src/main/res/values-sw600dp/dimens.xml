@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 平板增大间距 -->
+    <!-- 卡片增大 -->
+    <dimen name="card_margin">12dp</dimen>
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="card_corner_radius">16dp</dimen>
+
+    <!-- 文字稍大 -->
+    <dimen name="text_md">17sp</dimen>
+    <dimen name="text_lg">19sp</dimen>
+    <dimen name="text_xl">22sp</dimen>
+    <!-- 平板用2列网格 -->
+    <integer name="stock_grid_span">2</integer>
+</resources>
