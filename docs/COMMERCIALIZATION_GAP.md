@@ -36,7 +36,7 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 - Historical quant backtests using real daily K-line samples, custom stock code/date inputs, transaction-cost assumptions, risk scoring, and no synthetic fallback.
 - Debug-only local payment simulation.
 - Local backend scaffold for accounts, orders, sandbox callbacks, entitlement, account deletion, and premium data proxy contracts.
-- Build-flagged Android backend sync for login, entitlement refresh, account deletion, and Debug sandbox subscription verification.
+- Build-flagged Android backend sync for login, access-token refresh, entitlement refresh, account deletion, and Debug sandbox subscription verification.
 - Repeatable local verification scripts and GitHub Actions P0 workflow.
 
 ## Risk Notes

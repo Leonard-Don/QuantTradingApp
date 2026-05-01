@@ -83,7 +83,7 @@ App behavior:
 - Persist the latest verified entitlement with `lastVerifiedAt`.
 - If offline, allow cached entitlement only inside the grace window.
 - Android debug builds can enable this contract with `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/`.
-- The Android account page uses the enabled contract for login, entitlement refresh, debug sandbox subscription sync, and account deletion.
+- The Android account page uses the enabled contract for login, access-token refresh, entitlement refresh, debug sandbox subscription sync, and account deletion.
 
 ### DELETE `/v1/me`
 

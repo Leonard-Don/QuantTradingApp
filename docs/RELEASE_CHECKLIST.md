@@ -15,6 +15,7 @@
 - [x] Backend contract scaffold covered by local pytest.
 - [x] Release APK/AAB artifact script exists.
 - [x] Android auth/VIP flows have a build-flagged backend sync path.
+- [x] Android backend sync refreshes expired access tokens before entitlement, subscription, and account-deletion calls.
 - [ ] Configure signing properties outside git.
 - [ ] Build signed AAB.
 - [ ] Prepare app icon, screenshots, feature graphic, short description, and full description.
@@ -22,7 +23,7 @@
 - [ ] Add user agreement URL.
 - [ ] Add data-source disclaimer.
 - [ ] Validate notification permission copy.
-- [ ] Validate account deletion/support contact path.
+- [x] Validate account deletion/support contact path.
 - [x] Wire Android account deletion UI to `DELETE /v1/me` and local data cleanup.
 - [ ] Confirm target SDK policy before upload.
 

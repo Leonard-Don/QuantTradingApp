@@ -116,6 +116,31 @@ class AuthActivity : AppCompatActivity() {
         binding.btnNotifyTest.setOnClickListener {
             sendTestNotification()
         }
+
+        binding.btnRefreshEntitlements.setOnClickListener {
+            refreshState(showToast = true)
+        }
+
+        binding.btnPrivacyPolicy.setOnClickListener {
+            showInfoDialog(
+                title = getString(R.string.auth_privacy_policy),
+                message = getString(R.string.auth_privacy_policy_message)
+            )
+        }
+
+        binding.btnTermsOfService.setOnClickListener {
+            showInfoDialog(
+                title = getString(R.string.auth_terms_of_service),
+                message = getString(R.string.auth_terms_of_service_message)
+            )
+        }
+
+        binding.btnSupportContact.setOnClickListener {
+            showInfoDialog(
+                title = getString(R.string.auth_support_contact),
+                message = getString(R.string.auth_support_contact_message)
+            )
+        }
     }
 
     private fun completeAuth(state: UserStateEntity, message: String) {
@@ -139,10 +164,25 @@ class AuthActivity : AppCompatActivity() {
         return true
     }
 
-    private fun refreshState() {
+    private fun refreshState(showToast: Boolean = false) {
         lifecycleScope.launch {
             renderState(LocalStateRepository.refreshBackendEntitlements())
+            if (showToast) {
+                Toast.makeText(
+                    this@AuthActivity,
+                    getString(R.string.auth_refresh_entitlements_done),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
+    }
+
+    private fun showInfoDialog(title: String, message: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.dialog_close), null)
+            .show()
     }
 
     private fun confirmDeleteAccount() {

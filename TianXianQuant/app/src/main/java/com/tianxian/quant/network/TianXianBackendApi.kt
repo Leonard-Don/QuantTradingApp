@@ -29,6 +29,11 @@ data class BackendLoginRequest(
     val deviceId: String
 )
 
+data class BackendRefreshRequest(
+    val refreshToken: String,
+    val deviceId: String
+)
+
 data class BackendAuthResponse(
     val userId: String,
     val accessToken: String,
@@ -127,6 +132,9 @@ interface TianXianBackendApi {
     @POST("v1/auth/login")
     suspend fun login(@Body request: BackendLoginRequest): BackendAuthResponse
 
+    @POST("v1/auth/refresh")
+    suspend fun refresh(@Body request: BackendRefreshRequest): BackendAuthResponse
+
     @GET("v1/me/entitlements")
     suspend fun entitlements(
         @Header("Authorization") authorization: String
@@ -198,6 +206,24 @@ object TianXianBackendRepository {
             BackendAccountSync.success(auth, loadEntitlements(auth.accessToken), "服务端登录已同步")
         }.getOrElse {
             BackendAccountSync.failure("服务端登录失败：${it.shortMessage()}")
+        }
+    }
+
+    suspend fun refreshSession(refreshToken: String?): BackendAccountSync {
+        if (!isEnabled) return BackendAccountSync.disabled()
+        if (refreshToken.isNullOrBlank()) {
+            return BackendAccountSync.failure("缺少服务端刷新令牌，请重新登录")
+        }
+        return runCatching {
+            val auth = api.refresh(
+                BackendRefreshRequest(
+                    refreshToken = refreshToken,
+                    deviceId = deviceId()
+                )
+            )
+            BackendAccountSync.success(auth, loadEntitlements(auth.accessToken), "服务端登录态已刷新")
+        }.getOrElse {
+            BackendAccountSync.failure("服务端登录态刷新失败：${it.shortMessage()}")
         }
     }
 

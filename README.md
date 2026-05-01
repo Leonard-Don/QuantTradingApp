@@ -117,7 +117,7 @@ TianXianQuant/
 
 - 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；实时源不可用时优先展示最近本机行情缓存，并明确标注缓存时间。
 - 量化回测已使用东方财富日线样本、可选标的代码和日期区间，按收盘价信号、全仓进出和单边成本估算历史指标，不再用静态演示指标冒充回测。
-- Android 端登录、社区、VIP 到期时间默认保留本机 Room 演示状态；构建时可通过 `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/` 开启后端账号、权益、账号删除和 Debug 沙盒订单同步。
+- Android 端登录、社区、VIP 到期时间默认保留本机 Room 演示状态；账号页提供手动权益同步、账号删除、隐私/协议和内测支持说明；构建时可通过 `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/` 开启后端账号、访问令牌刷新、权益、账号删除和 Debug 沙盒订单同步。
 - 仓库已包含本地 FastAPI 后端骨架，用于账号、订单、权益、支付回调和高级数据代理接入。
 - Debug 可本地模拟支付开通；Release 中 `ALLOW_LOCAL_PAYMENT_SIMULATION=false`，不会直接开通 VIP。
 - Release 已开启 R8 混淆与资源压缩，但正式上架仍需要签名、AAB、真实支付/账号服务与隐私合规材料。

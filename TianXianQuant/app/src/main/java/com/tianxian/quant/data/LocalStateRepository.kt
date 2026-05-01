@@ -134,7 +134,7 @@ object LocalStateRepository {
     }
 
     suspend fun deleteAccount(): AccountDeletionResult {
-        val state = getUserState()
+        val state = refreshBackendSessionIfNeeded(getUserState())
         val backendSync = if (TianXianBackendRepository.isEnabled && !state.backendAccessToken.isNullOrBlank()) {
             TianXianBackendRepository.deleteAccount(state.backendAccessToken)
         } else {
@@ -166,7 +166,7 @@ object LocalStateRepository {
     }
 
     suspend fun refreshBackendEntitlements(): UserStateEntity {
-        val state = getUserState()
+        val state = refreshBackendSessionIfNeeded(getUserState())
         if (!TianXianBackendRepository.isEnabled || !state.isLoggedIn || state.backendAccessToken.isNullOrBlank()) {
             return state
         }
@@ -177,7 +177,7 @@ object LocalStateRepository {
     }
 
     suspend fun activateVip(tier: VipTier, days: Int, channel: PaymentChannel? = null): UserStateEntity {
-        val state = getUserState()
+        val state = refreshBackendSessionIfNeeded(getUserState())
         val backendSync = if (channel != null) {
             TianXianBackendRepository.activateSandboxSubscription(
                 accessToken = state.backendAccessToken,
@@ -573,6 +573,17 @@ object LocalStateRepository {
         )
     }
 
+    private suspend fun refreshBackendSessionIfNeeded(state: UserStateEntity): UserStateEntity {
+        if (!TianXianBackendRepository.isEnabled || !state.isLoggedIn) return state
+        if (state.backendAccessToken.isNullOrBlank()) return state
+        if (state.backendTokenExpiresAt > System.currentTimeMillis() + TOKEN_REFRESH_SKEW_MILLIS) return state
+
+        val sync = TianXianBackendRepository.refreshSession(state.backendRefreshToken)
+        val updated = applyBackendSync(state, sync)
+        db.userStateDao().save(updated)
+        return updated
+    }
+
     private suspend fun clearLocalUserData(statusMessage: String) {
         db.withTransaction {
             db.postCommentDao().clear()
@@ -657,4 +668,5 @@ object LocalStateRepository {
     }
 
     private const val QUOTE_CACHE_MAX_AGE_MILLIS = 7L * 24L * 60L * 60L * 1000L
+    private const val TOKEN_REFRESH_SKEW_MILLIS = 60L * 1000L
 }
