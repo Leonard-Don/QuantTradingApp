@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: tianxianquant-backend
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    plan: starter
+    disk:
+      name: tianxianquant-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: TIANXIAN_DB_PATH
+        value: /data/tianxian.db
+      - key: TIANXIAN_REQUIRE_CALLBACK_SIGNATURE
+        value: "1"
+      - key: TIANXIAN_PAYMENT_CALLBACK_SECRET
+        sync: false

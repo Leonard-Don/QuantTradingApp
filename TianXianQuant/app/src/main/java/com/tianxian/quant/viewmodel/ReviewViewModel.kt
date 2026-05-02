@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
 import com.tianxian.quant.model.DailyResearchBriefPolicy
+import com.tianxian.quant.model.MarketAnalysisPolicy
 import com.tianxian.quant.model.MarketOverview
 import com.tianxian.quant.model.PortfolioHoldingPolicy
 import com.tianxian.quant.model.PortfolioStressPolicy
@@ -54,32 +55,46 @@ class ReviewViewModel : ViewModel() {
             _isLoading.value = true
             refreshVipState()
 
-            // 加载大盘指数
-            try {
-                _marketOverview.value = when (val result = MarketDataRepository.getMarketOverviewResult()) {
-                    is MarketDataResult.Success -> result.data
-                    is MarketDataResult.Failure -> emptyList()
+            val marketWarnings = mutableListOf<String>()
+            val marketIndices = try {
+                when (val result = MarketDataRepository.getMarketOverviewResult()) {
+                    is MarketDataResult.Success -> {
+                        marketWarnings += result.warnings
+                        result.data
+                    }
+                    is MarketDataResult.Failure -> {
+                        marketWarnings += result.message
+                        emptyList()
+                    }
                 }
             } catch (e: Exception) {
-                _marketOverview.value = emptyList()
+                marketWarnings += "指数 quote 加载异常：${e.message ?: e::class.java.simpleName}"
+                emptyList()
             }
+            _marketOverview.value = marketIndices
 
-            loadReviewData()
+            loadReviewData(marketIndices, marketWarnings)
             loadReviewHistory()
 
             _isLoading.value = false
         }
     }
 
-    private suspend fun loadReviewData() {
+    private suspend fun loadReviewData(
+        marketIndices: List<MarketOverview>,
+        marketWarnings: List<String>
+    ) {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val watchlistCodes = LocalStateRepository.getWatchlistCodes()
         val holdings = LocalStateRepository.getPortfolioHoldings()
         val holdingCodes = holdings.map { it.code }
         val sampleCodes = (StockSearchIndex.defaultCodes(REVIEW_SAMPLE_LIMIT) + watchlistCodes + holdingCodes).distinct()
         val quoteResult = MarketDataRepository.getQuoteResult(sampleCodes)
+        val quoteSource = quoteResult.sourceOrNull().orEmpty()
+        val quoteWarnings = (quoteResult as? MarketDataResult.Success)?.warnings.orEmpty()
         val liveStocks = quoteResult.getOrNull().orEmpty()
         val usingFallback = quoteResult is MarketDataResult.Failure || liveStocks.isEmpty()
+        val usingCachedQuotes = quoteSource.contains("缓存")
         val stocks = if (usingFallback) getFallbackStocks() else liveStocks
         val watchlistCodeSet = watchlistCodes.toSet()
         val watchlistStocks = stocks.filter { it.code in watchlistCodeSet }
@@ -94,7 +109,8 @@ class ReviewViewModel : ViewModel() {
                     changePercent = items.map { it.changePercent }.average(),
                     leadingStock = leader.name,
                     leadingStockCode = leader.code,
-                    capitalFlow = items.sumOf { it.turnover }
+                    capitalFlow = items.sumOf { it.turnover },
+                    stocks = items.sortedByDescending { it.changePercent }
                 )
             }
             .sortedByDescending { it.changePercent }
@@ -112,6 +128,16 @@ class ReviewViewModel : ViewModel() {
             holdings = holdings,
             quotes = stocks
         )
+        val marketAnalysisReport = MarketAnalysisPolicy.evaluate(
+            stocks = stocks,
+            hotSectors = sectors,
+            watchlistStocks = watchlistStocks,
+            marketIndices = marketIndices,
+            source = quoteSource.ifBlank { if (usingFallback) "本地离线样本" else "多源 quote" },
+            warnings = quoteWarnings + marketWarnings,
+            usingFallback = usingFallback || usingCachedQuotes,
+            requestedSampleCount = sampleCodes.size
+        )
         val dailyBriefReport = DailyResearchBriefPolicy.evaluate(
             date = today,
             upCount = upCount,
@@ -122,7 +148,8 @@ class ReviewViewModel : ViewModel() {
             watchlistStocks = watchlistStocks,
             watchlistHealthReport = watchlistHealthReport,
             portfolioStressReport = portfolioStressReport,
-            portfolioHoldingReport = portfolioHoldingReport
+            portfolioHoldingReport = portfolioHoldingReport,
+            marketAnalysisReport = marketAnalysisReport
         )
         val researchPlanReport = ResearchPlanPolicy.evaluate(
             date = today,
@@ -135,7 +162,8 @@ class ReviewViewModel : ViewModel() {
             watchlistHealthReport = watchlistHealthReport,
             portfolioStressReport = portfolioStressReport,
             portfolioHoldingReport = portfolioHoldingReport,
-            dailyBriefReport = dailyBriefReport
+            dailyBriefReport = dailyBriefReport,
+            marketAnalysisReport = marketAnalysisReport
         )
 
         val reviewData = ReviewData(
@@ -153,17 +181,19 @@ class ReviewViewModel : ViewModel() {
             portfolioStressReport = portfolioStressReport,
             dailyResearchBriefReport = dailyBriefReport,
             portfolioHoldingReport = portfolioHoldingReport,
-            researchPlanReport = researchPlanReport
+            researchPlanReport = researchPlanReport,
+            marketAnalysisReport = marketAnalysisReport
         )
         _reviewData.value = reviewData
         _reviewStatus.value = if (usingFallback) {
             val reason = (quoteResult as? MarketDataResult.Failure)?.message ?: "多源 quote 暂无可用行情"
             "离线降级：$reason，当前复盘使用 ${stocks.size} 只本地样本占位，仅用于界面查看；不会写入历史回溯。"
         } else {
-            val source = quoteResult.sourceOrNull() ?: "多源 quote"
-            val warnings = (quoteResult as? MarketDataResult.Success)?.warnings.orEmpty().distinct().take(2)
+            val source = quoteSource.ifBlank { "多源 quote" }
+            val warnings = (quoteWarnings + marketWarnings).distinct().take(2)
             val warningText = warnings.joinToString("；").takeIf { it.isNotBlank() }?.let { "\n数据源提示：$it。" }.orEmpty()
-            "行情来自 $source；复盘统计基于当前 ${stocks.size} 只行情池样本，自选池跟踪 ${watchlistStocks.size}/${watchlistCodes.size} 只，不代表全市场覆盖。已保存为本机历史快照。$warningText"
+            val indexText = if (marketIndices.isEmpty()) "指数 quote 暂不可用" else "指数 quote ${marketIndices.size} 个"
+            "行情来自 $source；$indexText；复盘统计基于当前 ${stocks.size}/${sampleCodes.size} 只行情池样本，自选池跟踪 ${watchlistStocks.size}/${watchlistCodes.size} 只，不代表全市场覆盖。已保存为本机历史快照。$warningText"
         }
         if (!usingFallback) {
             LocalStateRepository.saveReviewSnapshot(reviewData)

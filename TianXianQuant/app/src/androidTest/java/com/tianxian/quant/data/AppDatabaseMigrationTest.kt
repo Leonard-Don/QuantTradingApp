@@ -34,6 +34,12 @@ class AppDatabaseMigrationTest {
             assertTrue("review_snapshots should exist", "review_snapshots" in tables)
             assertTrue("stock_quote_cache should exist", "stock_quote_cache" in tables)
             assertTrue("portfolio_holdings should exist", "portfolio_holdings" in tables)
+            assertTrue("subscription_orders should exist", "subscription_orders" in tables)
+            val reviewColumns = database.openHelper.readableDatabase.columnNames("review_snapshots")
+            assertTrue("marketScore should exist", "marketScore" in reviewColumns)
+            assertTrue("marketGrade should exist", "marketGrade" in reviewColumns)
+            assertTrue("marketRegime should exist", "marketRegime" in reviewColumns)
+            assertTrue("marketSummary should exist", "marketSummary" in reviewColumns)
         } finally {
             database.close()
         }
@@ -95,6 +101,17 @@ class AppDatabaseMigrationTest {
             }
         }
         return tables
+    }
+
+    private fun SupportSQLiteDatabase.columnNames(tableName: String): Set<String> {
+        val columns = mutableSetOf<String>()
+        query("PRAGMA table_info(`$tableName`)").use { cursor ->
+            val nameIndex = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                columns += cursor.getString(nameIndex)
+            }
+        }
+        return columns
     }
 
     private companion object {

@@ -66,7 +66,8 @@ data class ReviewData(
     val portfolioStressReport: PortfolioStressReport? = null,
     val dailyResearchBriefReport: DailyResearchBriefReport? = null,
     val portfolioHoldingReport: PortfolioHoldingReport? = null,
-    val researchPlanReport: ResearchPlanReport? = null
+    val researchPlanReport: ResearchPlanReport? = null,
+    val marketAnalysisReport: MarketAnalysisReport? = null
 )
 
 data class ReviewSnapshot(
@@ -78,6 +79,10 @@ data class ReviewSnapshot(
     val totalAmount: Double,
     val sectorSummary: String,
     val strongStockSummary: String,
+    val marketScore: Int = 0,
+    val marketGrade: String = "",
+    val marketRegime: String = "",
+    val marketSummary: String = "",
     val createdAt: Long
 )
 

@@ -1,6 +1,6 @@
 # TianXianQuant Commercialization Gap
 
-Last reviewed: 2026-04-29
+Last reviewed: 2026-05-02
 
 ## Current Status
 
@@ -14,10 +14,10 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 | Emulator smoke flow | Passing through `TianXianQuant/scripts/verify_emulator_smoke.sh` | Go for internal testing |
 | Subscription value surfaces | Implemented as local research tools, including K-line-driven historical backtests | Go for MVP validation |
 | Real payments | Backend sandbox order/callback scaffold exists; merchant callbacks not connected | No-go for paid launch |
-| Server-side entitlement | Backend source-of-truth scaffold exists; Android has a build-flagged sync path but production API is not deployed | No-go for paid launch |
+| Server-side entitlement | Backend source-of-truth scaffold exists; Android has a build-flagged sync path and QA build can require server-side entitlement, but production API is not deployed | No-go for paid launch |
 | Market data authorization | Public/free sources only | No-go for premium data claims |
 | Privacy/legal artifacts | Drafts only | No-go for store submission |
-| Release signing/AAB | Not configured | No-go for store submission |
+| Release signing/AAB | Unsigned APK/AAB, signing env template, external signing support, and release config gate exist; real signing credentials are not configured | No-go for store submission |
 
 ## Must Finish Before Paid Launch
 
@@ -37,6 +37,8 @@ TianXianQuant is ready for local MVP demos and internal Android testing. It is n
 - Debug-only local payment simulation.
 - Local backend scaffold for accounts, orders, sandbox callbacks, entitlement, account deletion, and premium data proxy contracts.
 - Build-flagged Android backend sync for login, access-token refresh, entitlement refresh, account deletion, and Debug sandbox subscription verification.
+- QA backend builds can require server-side subscription sync so payment failures do not silently activate local VIP.
+- Backend Dockerfile, Render Blueprint, store listing draft, manual QA matrix, paid-release configuration gate, release signing template, admin audit page, and generated store-asset workflow are in place.
 - Repeatable local verification scripts and GitHub Actions P0 workflow.
 
 ## Risk Notes

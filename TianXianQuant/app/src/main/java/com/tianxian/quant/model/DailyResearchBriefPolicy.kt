@@ -25,10 +25,12 @@ object DailyResearchBriefPolicy {
         watchlistStocks: List<StockInfo>,
         watchlistHealthReport: WatchlistHealthReport?,
         portfolioStressReport: PortfolioStressReport?,
-        portfolioHoldingReport: PortfolioHoldingReport? = null
+        portfolioHoldingReport: PortfolioHoldingReport? = null,
+        marketAnalysisReport: MarketAnalysisReport? = null
     ): DailyResearchBriefReport {
         val totalBreadth = (upCount + downCount).coerceAtLeast(1)
         val upRatio = upCount * 1.0 / totalBreadth
+        val marketSignalScore = marketAnalysisReport?.score?.let { (it - 62) / 3 } ?: 0
         val marketScore = when {
             upRatio >= 0.68 -> 18
             upRatio >= 0.54 -> 12
@@ -38,7 +40,7 @@ object DailyResearchBriefPolicy {
         val healthScore = watchlistHealthReport?.score?.let { (it - 65) / 2 } ?: -4
         val stressScore = portfolioStressReport?.score?.let { (it - 65) / 3 } ?: -3
         val sectorScore = hotSectors.take(3).count { it.changePercent > 0 } * 3
-        val score = (64 + marketScore + healthScore + stressScore + sectorScore).coerceIn(0, 100)
+        val score = (64 + marketScore + marketSignalScore + healthScore + stressScore + sectorScore).coerceIn(0, 100)
 
         val marketTone = when {
             upRatio >= 0.68 -> "样本扩散偏强"
@@ -62,9 +64,18 @@ object DailyResearchBriefPolicy {
         } + holdingPulse
 
         val focusItems = buildList {
+            marketAnalysisReport?.let {
+                add("市场温度：${it.score}/100（${it.grade}｜${it.regime}）。")
+            }
             add("市场宽度：上涨 $upCount 只、下跌 $downCount 只，上涨占比 ${formatRatio(upRatio)}。")
             topSector?.let {
                 add("板块焦点：${it.name} 样本平均涨跌 ${formatPercent(it.changePercent)}，代表样本 ${it.leadingStock}。")
+            }
+            marketAnalysisReport?.focusSectors?.firstOrNull()?.let {
+                add("结构焦点：${it.name} 样本成交额 ${formatAmount(it.capitalFlow)}，代表样本 ${it.leadingStock}。")
+            }
+            marketAnalysisReport?.indexAlignmentText?.takeIf { it.isNotBlank() }?.let {
+                add(it)
             }
             if (topStrongStocks != "暂无") {
                 add("强势样本：$topStrongStocks。")
@@ -78,6 +89,7 @@ object DailyResearchBriefPolicy {
             if (upRatio < 0.42) {
                 add("行情池下跌样本占优，今日研究应优先识别风险而非扩展结论。")
             }
+            marketAnalysisReport?.riskItems?.take(2)?.forEach { add(it) }
             watchlistHealthReport?.riskItems?.take(2)?.forEach { add(it) }
             portfolioStressReport?.riskItems?.take(2)?.forEach { add(it) }
             portfolioHoldingReport?.riskItems?.take(2)?.forEach { add(it) }
@@ -90,6 +102,7 @@ object DailyResearchBriefPolicy {
         }.distinct().take(5)
 
         val actionItems = buildList {
+            marketAnalysisReport?.researchActions?.take(2)?.forEach { add(it) }
             add("先复盘市场宽度和前三板块，再看自选池是否与市场方向一致。")
             watchlistHealthReport?.researchActions?.firstOrNull()?.let { add(it) }
             portfolioStressReport?.researchActions?.firstOrNull()?.let { add(it) }
@@ -103,8 +116,19 @@ object DailyResearchBriefPolicy {
         return DailyResearchBriefReport(
             score = score,
             grade = gradeFor(score),
-            headline = "$date 研究简报：$marketTone，成交额样本 ${formatAmount(totalAmount)}。",
-            marketPulse = "行情池口径：上涨 $upCount 只、下跌 $downCount 只，上涨占比 ${formatRatio(upRatio)}，状态为$marketTone。",
+            headline = marketAnalysisReport?.let {
+                "$date 研究简报：市场温度 ${it.score}/100（${it.regime}），成交额样本 ${formatAmount(totalAmount)}。"
+            } ?: "$date 研究简报：$marketTone，成交额样本 ${formatAmount(totalAmount)}。",
+            marketPulse = marketAnalysisReport?.let {
+                listOf(
+                    it.breadthText,
+                    it.turnoverText,
+                    it.indexAlignmentText,
+                    it.sourceText,
+                    it.qualityText,
+                    it.watchlistText
+                ).filter { text -> text.isNotBlank() }.joinToString("\n")
+            } ?: "行情池口径：上涨 $upCount 只、下跌 $downCount 只，上涨占比 ${formatRatio(upRatio)}，状态为$marketTone。",
             sectorPulse = topSector?.let {
                 "板块焦点：${it.name} 位列样本前列，平均涨跌 ${formatPercent(it.changePercent)}，代表样本 ${it.leadingStock}。"
             } ?: "板块焦点：暂无可用板块样本。",

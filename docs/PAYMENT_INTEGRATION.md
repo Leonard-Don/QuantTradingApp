@@ -25,9 +25,10 @@ This keeps the Android UI flow testable without pretending real money collection
 
 - Add WeChat Pay SDK and Alipay SDK only after merchant accounts are available.
 - Keep the build-flagged backend order path and replace the Debug sandbox callback with merchant SDK confirmation once merchant accounts are available.
-- Store only order IDs and entitlement snapshots locally.
-- Add release guard that fails fast if payment configuration is missing.
-- Add UI states for pending, paid, failed, cancelled, refunded, and manual review.
+- Store order IDs, status, amount, channel, entitlement snapshots, and source locally. `[scaffolded]`
+- Use `-PtianxianRequireBackendPaymentSync=true` for QA builds that must block local VIP fallback when backend order/callback/entitlement sync fails. `[scaffolded]`
+- Use `scripts/verify_paid_release_config.sh` as the paid/store release guard for production API, legal URLs, support email, backend sync, and signing input. `[scaffolded]`
+- Add UI states for pending, paid, failed, cancelled, refunded, and manual review. `[partially scaffolded: pending/paid/refunded/cancelled/manual-review labels are visible from cached order history]`
 
 ## Backend Tasks
 
@@ -35,7 +36,8 @@ This keeps the Android UI flow testable without pretending real money collection
 - Payment callback table with provider transaction ID and audit detail. `[scaffolded]`
 - Idempotent entitlement activation. `[scaffolded]`
 - Refund/cancel event handling. `[scaffolded]`
-- Admin audit view for order and entitlement changes.
+- User order list endpoint for Android status refresh. `[scaffolded]`
+- Admin audit view for order, callback, and entitlement changes. `[scaffolded: read-only JSON and HTML, gated by TIANXIAN_ADMIN_TOKEN]`
 
 ## Test Matrix
 
@@ -66,6 +68,11 @@ Paid release is blocked until:
 - Provider callbacks are verified in sandbox.
 - Entitlement API is integrated.
 - App release build cannot trigger local VIP activation.
+- Android stores local subscription-order snapshots and shows recent order status on the VIP page.
+- Backend exposes `GET /v1/me/orders` for user order history and status refresh.
+- Backend exposes token-protected admin audit routes for order/callback/entitlement reconciliation.
+- QA builds require backend payment sync before release candidate sign-off.
+- `verifyPaidReleaseConfig` passes with production API, legal URLs, support email, data disclaimer, and signing input.
 - Privacy policy and subscription rules mention renewal/refund behavior.
 - Android app backend sync is enabled against the deployed API, with Room used only as a cache.
 - Production merchant native signatures replace the scaffold HMAC.

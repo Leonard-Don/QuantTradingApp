@@ -3,12 +3,14 @@ package com.tianxian.quant.ui.auth
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.tianxian.quant.BuildConfig
 import com.tianxian.quant.R
 import com.tianxian.quant.data.LocalStateRepository
 import com.tianxian.quant.data.UserStateEntity
@@ -122,23 +124,25 @@ class AuthActivity : AppCompatActivity() {
         }
 
         binding.btnPrivacyPolicy.setOnClickListener {
-            showInfoDialog(
+            showExternalInfoDialog(
                 title = getString(R.string.auth_privacy_policy),
-                message = getString(R.string.auth_privacy_policy_message)
+                message = getString(R.string.auth_privacy_policy_message),
+                externalUrl = BuildConfig.PRIVACY_POLICY_URL
             )
         }
 
         binding.btnTermsOfService.setOnClickListener {
-            showInfoDialog(
+            showExternalInfoDialog(
                 title = getString(R.string.auth_terms_of_service),
-                message = getString(R.string.auth_terms_of_service_message)
+                message = getString(R.string.auth_terms_of_service_message),
+                externalUrl = BuildConfig.TERMS_OF_SERVICE_URL
             )
         }
 
         binding.btnSupportContact.setOnClickListener {
             showInfoDialog(
                 title = getString(R.string.auth_support_contact),
-                message = getString(R.string.auth_support_contact_message)
+                message = buildSupportMessage()
             )
         }
     }
@@ -183,6 +187,36 @@ class AuthActivity : AppCompatActivity() {
             .setMessage(message)
             .setPositiveButton(getString(R.string.dialog_close), null)
             .show()
+    }
+
+    private fun showExternalInfoDialog(title: String, message: String, externalUrl: String) {
+        val trimmedUrl = externalUrl.trim()
+        if (trimmedUrl.isBlank()) {
+            showInfoDialog(title, message)
+            return
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("$message\n\n正式链接：$trimmedUrl")
+            .setPositiveButton(getString(R.string.auth_open_external_link)) { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(trimmedUrl)))
+            }
+            .setNegativeButton(getString(R.string.dialog_close), null)
+            .show()
+    }
+
+    private fun buildSupportMessage(): String {
+        val supportEmail = BuildConfig.SUPPORT_EMAIL.trim()
+        val dataDisclaimerUrl = BuildConfig.DATA_DISCLAIMER_URL.trim()
+        return buildString {
+            append(getString(R.string.auth_support_contact_message))
+            if (supportEmail.isNotBlank()) {
+                append("\n\n客服邮箱：").append(supportEmail)
+            }
+            if (dataDisclaimerUrl.isNotBlank()) {
+                append("\n\n数据源与免责声明：").append(dataDisclaimerUrl)
+            }
+        }
     }
 
     private fun confirmDeleteAccount() {

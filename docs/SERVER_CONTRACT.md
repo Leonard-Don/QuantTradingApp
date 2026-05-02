@@ -143,7 +143,13 @@ Response:
 ```json
 {
   "orderId": "ord_123",
+  "tier": "STOCK",
+  "durationDays": 31,
+  "amountCents": 6800,
+  "currency": "CNY",
+  "channel": "WECHAT",
   "status": "PAID",
+  "createdAt": 1770000000000,
   "paidAt": 1770000000000,
   "entitlement": {
     "stockVipExpireTime": 1771000000000,
@@ -151,6 +157,10 @@ Response:
   }
 }
 ```
+
+### GET `/v1/me/orders`
+
+Returns the current user's recent subscription orders, newest first, using the same response shape as `/v1/orders/{orderId}`. Android caches this list locally so users can see pending, paid, refunded, and cancelled subscription state even after reconnecting or reopening the app.
 
 ## Payment Callbacks
 
@@ -182,6 +192,37 @@ Backend requirements:
 - Persist audit events for paid, refunded, chargeback, and cancelled states.
 
 Current local backend scaffold supports sandbox `PAID`, `REFUNDED`, and `CANCELLED` events, optional HMAC via `TIANXIAN_PAYMENT_CALLBACK_SECRET`, duplicate provider transaction rejection, and callback audit rows. Production WeChat/Alipay native signature verification is still a merchant-credential task.
+
+## Admin Audit
+
+### GET `/v1/admin/audit`
+
+Returns a read-only operational snapshot for smoke checks and manual reconciliation. The route is disabled unless `TIANXIAN_ADMIN_TOKEN` is configured. Clients must pass either `X-Admin-Token` or `?token=`.
+
+Response:
+
+```json
+{
+  "generatedAt": 1770000000000,
+  "counts": {
+    "users": 1,
+    "orders": 1,
+    "paymentCallbacks": 1,
+    "activeEntitlements": 1
+  },
+  "orderStatusCounts": {
+    "PAID": 1
+  },
+  "recentUsers": [],
+  "recentOrders": [],
+  "recentPaymentCallbacks": [],
+  "entitlements": []
+}
+```
+
+### GET `/admin`
+
+Returns the same read-only snapshot as a minimal HTML page for manual backend review. It must not expose mutation actions.
 
 ## Data Provider Proxy
 

@@ -8,6 +8,14 @@ local.properties
 *.iml
 TianXianQuant/cover.png
 
+# Release signing and local launch secrets
+*.jks
+*.keystore
+*.p12
+release.env
+release-signing.properties
+TianXianQuant/release-signing.properties
+
 # Python
 __pycache__/
 .pytest_cache/

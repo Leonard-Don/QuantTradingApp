@@ -15,6 +15,7 @@ import com.tianxian.quant.model.VipExpiryState
 import com.tianxian.quant.model.VipTier
 import com.tianxian.quant.network.BackendAccountSync
 import com.tianxian.quant.network.BackendEntitlementResponse
+import com.tianxian.quant.network.BackendOrderStatusResponse
 import com.tianxian.quant.network.TianXianBackendRepository
 import com.tianxian.quant.payment.PaymentChannel
 import java.security.MessageDigest
@@ -176,6 +177,26 @@ object LocalStateRepository {
         return updated
     }
 
+    suspend fun getSubscriptionOrders(limit: Int = 10): List<SubscriptionOrderEntity> {
+        return db.subscriptionOrderDao().getRecent(limit)
+    }
+
+    suspend fun refreshSubscriptionOrders(limit: Int = 10): List<SubscriptionOrderEntity> {
+        val state = refreshBackendSessionIfNeeded(getUserState())
+        if (!TianXianBackendRepository.isEnabled || !state.isLoggedIn || state.backendAccessToken.isNullOrBlank()) {
+            return getSubscriptionOrders(limit)
+        }
+        val sync = TianXianBackendRepository.fetchOrders(state.backendAccessToken)
+        if (sync.success) {
+            db.subscriptionOrderDao().saveAll(sync.orders.map { it.toEntity(source = "backend") })
+            return getSubscriptionOrders(limit)
+        }
+        if (sync.enabled) {
+            db.userStateDao().save(state.copy(backendSyncStatus = sync.message))
+        }
+        return getSubscriptionOrders(limit)
+    }
+
     suspend fun activateVip(tier: VipTier, days: Int, channel: PaymentChannel? = null): UserStateEntity {
         val state = refreshBackendSessionIfNeeded(getUserState())
         val backendSync = if (channel != null) {
@@ -189,7 +210,14 @@ object LocalStateRepository {
             BackendAccountSync.disabled()
         }
         if (backendSync.success) {
+            backendSync.order?.let { db.subscriptionOrderDao().save(it.toEntity(source = "backend")) }
             val updated = applyBackendSync(state, backendSync)
+            db.userStateDao().save(updated)
+            return updated
+        }
+        backendSync.order?.let { db.subscriptionOrderDao().save(it.toEntity(source = "backend")) }
+        if (BuildConfig.REQUIRE_BACKEND_PAYMENT_SYNC && channel != null && TianXianBackendRepository.isEnabled) {
+            val updated = state.copy(backendSyncStatus = backendSync.message)
             db.userStateDao().save(updated)
             return updated
         }
@@ -219,6 +247,17 @@ object LocalStateRepository {
             backendSyncStatus = if (backendSync.enabled) backendSync.message else state.backendSyncStatus
         )
         db.userStateDao().save(updated)
+        if (channel != null) {
+            db.subscriptionOrderDao().save(
+                localPaidOrderEntity(
+                    tier = tier,
+                    days = days,
+                    channel = channel,
+                    state = updated,
+                    paidAt = now
+                )
+            )
+        }
         return updated
     }
 
@@ -542,6 +581,7 @@ object LocalStateRepository {
     }
 
     private fun ReviewData.toSnapshotEntity(createdAt: Long): ReviewSnapshotEntity {
+        val marketReport = marketAnalysisReport
         return ReviewSnapshotEntity(
             date = date,
             upCount = upCount,
@@ -555,6 +595,21 @@ object LocalStateRepository {
             strongStockSummary = strongStocks.take(5).joinToString("；") {
                 "${it.name} ${formatSignedPercent(it.changePercent)}"
             },
+            marketScore = marketReport?.score ?: 0,
+            marketGrade = marketReport?.grade.orEmpty(),
+            marketRegime = marketReport?.regime.orEmpty(),
+            marketSummary = marketReport?.let {
+                listOf(
+                    it.breadthText,
+                    it.turnoverText,
+                    it.sectorText,
+                    it.watchlistText,
+                    it.indexAlignmentText,
+                    it.qualityText
+                )
+                    .filter { text -> text.isNotBlank() }
+                    .joinToString(" ")
+            }.orEmpty(),
             createdAt = createdAt
         )
     }
@@ -569,6 +624,10 @@ object LocalStateRepository {
             totalAmount = totalAmount,
             sectorSummary = sectorSummary,
             strongStockSummary = strongStockSummary,
+            marketScore = marketScore,
+            marketGrade = marketGrade,
+            marketRegime = marketRegime,
+            marketSummary = marketSummary,
             createdAt = createdAt
         )
     }
@@ -592,6 +651,7 @@ object LocalStateRepository {
             db.stockWatchlistDao().clear()
             db.portfolioHoldingDao().clear()
             db.stockQuoteCacheDao().clear()
+            db.subscriptionOrderDao().clear()
             db.strategyDao().clear()
             db.reviewSnapshotDao().clear()
             db.userStateDao().clear()
@@ -634,6 +694,62 @@ object LocalStateRepository {
             quantVipExpireTime = entitlement.quantVipExpireTime,
             backendGraceUntil = entitlement.graceUntil
         )
+    }
+
+    private fun BackendOrderStatusResponse.toEntity(source: String): SubscriptionOrderEntity {
+        return SubscriptionOrderEntity(
+            orderId = orderId,
+            tier = tier,
+            durationDays = durationDays,
+            amountCents = amountCents,
+            currency = currency,
+            channel = channel,
+            status = status,
+            createdAt = createdAt,
+            paidAt = paidAt,
+            stockVipExpireTime = entitlement?.stockVipExpireTime ?: 0L,
+            quantVipExpireTime = entitlement?.quantVipExpireTime ?: 0L,
+            source = source,
+            note = "服务端订单状态：$status",
+            updatedAt = System.currentTimeMillis()
+        )
+    }
+
+    private fun localPaidOrderEntity(
+        tier: VipTier,
+        days: Int,
+        channel: PaymentChannel,
+        state: UserStateEntity,
+        paidAt: Long
+    ): SubscriptionOrderEntity {
+        return SubscriptionOrderEntity(
+            orderId = "local-${UUID.randomUUID()}",
+            tier = tier.name,
+            durationDays = days,
+            amountCents = priceCents(tier, days),
+            currency = "CNY",
+            channel = channel.name,
+            status = "PAID",
+            createdAt = paidAt,
+            paidAt = paidAt,
+            stockVipExpireTime = state.stockVipExpireTime,
+            quantVipExpireTime = state.quantVipExpireTime,
+            source = "local_debug",
+            note = "Debug 本机模拟支付记录",
+            updatedAt = paidAt
+        )
+    }
+
+    private fun priceCents(tier: VipTier, days: Int): Int {
+        return when (tier) {
+            VipTier.STOCK -> when {
+                days >= 360 -> 58_800
+                days >= 90 -> 16_800
+                else -> 6_800
+            }
+            VipTier.QUANT -> 16_800
+            VipTier.FULL -> 58_800
+        }
     }
 
     private fun formatSignedPercent(value: Double): String {

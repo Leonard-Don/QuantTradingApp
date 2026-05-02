@@ -32,7 +32,8 @@ object ResearchPlanPolicy {
         watchlistHealthReport: WatchlistHealthReport?,
         portfolioStressReport: PortfolioStressReport?,
         portfolioHoldingReport: PortfolioHoldingReport?,
-        dailyBriefReport: DailyResearchBriefReport?
+        dailyBriefReport: DailyResearchBriefReport?,
+        marketAnalysisReport: MarketAnalysisReport? = null
     ): ResearchPlanReport {
         val totalBreadth = (upCount + downCount).coerceAtLeast(1)
         val upRatio = upCount * 1.0 / totalBreadth
@@ -45,6 +46,7 @@ object ResearchPlanPolicy {
         val strongestStock = strongStocks.firstOrNull()
         val holdingTop = portfolioHoldingReport?.positions?.firstOrNull()
         val riskCount = listOfNotNull(
+            marketAnalysisReport?.riskItems,
             watchlistHealthReport?.riskItems,
             portfolioStressReport?.riskItems,
             portfolioHoldingReport?.riskItems,
@@ -52,6 +54,26 @@ object ResearchPlanPolicy {
         ).sumOf { it.size }
 
         val planItems = buildList {
+            marketAnalysisReport?.let {
+                add(
+                    ResearchPlanItem(
+                        title = "市场温度复盘",
+                        detail = "温度 ${it.score}/100（${it.grade}｜${it.regime}）。${it.breadthText} ${it.sectorText} ${it.indexAlignmentText}",
+                        priority = if (it.score < 56) "高" else if (it.score < 70) "中" else "常规",
+                        source = "市场"
+                    )
+                )
+                add(
+                    ResearchPlanItem(
+                        title = "行情质量核对",
+                        detail = listOf(it.sourceText, it.qualityText)
+                            .filter { text -> text.isNotBlank() }
+                            .joinToString(" "),
+                        priority = if (it.riskItems.any { risk -> risk.contains("行情覆盖") || risk.contains("数据源") || risk.contains("缓存") || risk.contains("离线") }) "高" else "常规",
+                        source = "数据"
+                    )
+                )
+            }
             add(
                 ResearchPlanItem(
                     title = "市场宽度复查",
@@ -67,6 +89,16 @@ object ResearchPlanPolicy {
                         detail = "${it.name} 样本涨跌 ${formatPercent(it.changePercent)}，代表样本 ${it.leadingStock}，复查是否存在单一板块叙事偏差。",
                         priority = if (it.changePercent < 0.0) "中" else "常规",
                         source = "板块"
+                    )
+                )
+            }
+            marketAnalysisReport?.focusSectors?.take(2)?.forEach { sector ->
+                add(
+                    ResearchPlanItem(
+                        title = "${sector.name}结构跟踪",
+                        detail = "${sector.name} 平均涨跌 ${formatPercent(sector.changePercent)}，样本成交额 ${formatAmount(sector.capitalFlow)}亿，代表样本 ${sector.leadingStock}。复查它是否带动相邻板块，还是单点行情。",
+                        priority = if (sector.changePercent < 0.0) "中" else "常规",
+                        source = "市场"
                     )
                 )
             }
@@ -136,12 +168,23 @@ object ResearchPlanPolicy {
                     )
                 )
             }
+            marketAnalysisReport?.researchActions?.take(2)?.forEachIndexed { index, action ->
+                add(
+                    ResearchPlanItem(
+                        title = "市场动作 ${index + 1}",
+                        detail = action,
+                        priority = "中",
+                        source = "市场"
+                    )
+                )
+            }
         }
             .distinctBy { it.title }
             .sortedWith(compareBy<ResearchPlanItem> { priorityRank(it.priority) }.thenBy { it.source })
             .take(8)
 
         val risks = buildList {
+            marketAnalysisReport?.riskItems?.forEach { add(it) }
             dailyBriefReport?.riskItems?.forEach { add(it) }
             watchlistHealthReport?.riskItems?.forEach { add(it) }
             portfolioStressReport?.riskItems?.forEach { add(it) }
@@ -152,6 +195,10 @@ object ResearchPlanPolicy {
             .take(6)
 
         val checklist = buildList {
+            marketAnalysisReport?.let {
+                add("记录市场温度 ${it.score}/100（${it.regime}）和主要风险项，下一次快照优先比较方向变化。")
+                add("同步记录行情来源、覆盖率和指数联动结论，避免把数据缺口误写成市场变化。")
+            }
             add("记录今日市场宽度、前三板块和强势样本，不把单日涨跌当成结论。")
             add("复查自选池评分、压力评分和风险项是否连续两次恶化。")
             if (portfolioHoldingReport == null) {
@@ -163,6 +210,7 @@ object ResearchPlanPolicy {
         }.distinct()
 
         val score = (76 +
+            ((marketAnalysisReport?.score ?: 62) - 70) / 4 +
             ((upRatio - 0.5) * 18).toInt() +
             ((watchlistHealthReport?.score ?: 62) - 70) / 4 +
             ((portfolioStressReport?.score ?: 62) - 70) / 4 +
@@ -170,7 +218,7 @@ object ResearchPlanPolicy {
             riskCount.coerceAtMost(10)
             ).coerceIn(0, 100)
         val headline = "$date 研究计划：${planItems.count { it.priority == "高" }} 个高优先级任务，${risks.size} 条风险复查。"
-        val dailyFocus = buildDailyFocus(leadingSector, portfolioHoldingReport, watchlistStocks, upRatio)
+        val dailyFocus = buildDailyFocus(leadingSector, portfolioHoldingReport, watchlistStocks, upRatio, marketAnalysisReport)
         val exportText = buildExportText(
             headline = headline,
             dailyFocus = dailyFocus,
@@ -195,9 +243,13 @@ object ResearchPlanPolicy {
         leadingSector: SectorInfo?,
         holdingReport: PortfolioHoldingReport?,
         watchlistStocks: List<StockInfo>,
-        upRatio: Double
+        upRatio: Double,
+        marketAnalysisReport: MarketAnalysisReport?
     ): String {
-        val marketTone = when {
+        val marketTone = marketAnalysisReport?.let {
+            val indexText = it.indexAlignmentText.substringBefore("，").takeIf { text -> text.isNotBlank() }
+            listOfNotNull("市场温度 ${it.score}/100（${it.regime}）", indexText).joinToString("；")
+        } ?: when {
             upRatio >= 0.6 -> "市场样本偏强"
             upRatio <= 0.35 -> "市场样本承压"
             else -> "市场样本分化"

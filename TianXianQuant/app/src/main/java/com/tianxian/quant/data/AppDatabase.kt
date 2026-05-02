@@ -35,6 +35,24 @@ data class UserStateEntity(
     val lastLoginAt: Long = 0L
 )
 
+@Entity(tableName = "subscription_orders")
+data class SubscriptionOrderEntity(
+    @PrimaryKey val orderId: String,
+    val tier: String,
+    val durationDays: Int,
+    val amountCents: Int,
+    val currency: String,
+    val channel: String,
+    val status: String,
+    val createdAt: Long,
+    val paidAt: Long?,
+    val stockVipExpireTime: Long,
+    val quantVipExpireTime: Long,
+    val source: String,
+    val note: String,
+    val updatedAt: Long
+)
+
 @Entity(tableName = "posts")
 data class PostEntity(
     @PrimaryKey val id: String,
@@ -141,6 +159,10 @@ data class ReviewSnapshotEntity(
     val totalAmount: Double,
     val sectorSummary: String,
     val strongStockSummary: String,
+    val marketScore: Int,
+    val marketGrade: String,
+    val marketRegime: String,
+    val marketSummary: String,
     val createdAt: Long
 )
 
@@ -153,6 +175,21 @@ interface UserStateDao {
     suspend fun save(entity: UserStateEntity)
 
     @Query("DELETE FROM user_state")
+    suspend fun clear()
+}
+
+@Dao
+interface SubscriptionOrderDao {
+    @Query("SELECT * FROM subscription_orders ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int = 10): List<SubscriptionOrderEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(order: SubscriptionOrderEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveAll(orders: List<SubscriptionOrderEntity>)
+
+    @Query("DELETE FROM subscription_orders")
     suspend fun clear()
 }
 
@@ -282,6 +319,7 @@ interface ReviewSnapshotDao {
 @Database(
     entities = [
         UserStateEntity::class,
+        SubscriptionOrderEntity::class,
         PostEntity::class,
         PostCommentEntity::class,
         StockFilterEntity::class,
@@ -291,11 +329,12 @@ interface ReviewSnapshotDao {
         StrategyEntity::class,
         ReviewSnapshotEntity::class
     ],
-    version = 11,
+    version = 13,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userStateDao(): UserStateDao
+    abstract fun subscriptionOrderDao(): SubscriptionOrderDao
     abstract fun postDao(): PostDao
     abstract fun postCommentDao(): PostCommentDao
     abstract fun stockFilterDao(): StockFilterDao
@@ -318,7 +357,7 @@ abstract class AppDatabase : RoomDatabase() {
 
 const val LOCAL_USER_ID = "local_user"
 const val DEFAULT_FILTER_ID = "default"
-private const val CURRENT_DATABASE_VERSION = 11
+private const val CURRENT_DATABASE_VERSION = 13
 
 val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until CURRENT_DATABASE_VERSION)
     .map { startVersion ->
@@ -464,6 +503,31 @@ private val CURRENT_TABLES = listOf(
         )
     ),
     TableSpec(
+        name = "subscription_orders",
+        columnsSql = "`orderId` TEXT NOT NULL, `tier` TEXT NOT NULL, `durationDays` INTEGER NOT NULL, " +
+            "`amountCents` INTEGER NOT NULL, `currency` TEXT NOT NULL, `channel` TEXT NOT NULL, " +
+            "`status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `paidAt` INTEGER, " +
+            "`stockVipExpireTime` INTEGER NOT NULL, `quantVipExpireTime` INTEGER NOT NULL, " +
+            "`source` TEXT NOT NULL, `note` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+            "PRIMARY KEY(`orderId`)",
+        columns = listOf(
+            textColumn("orderId", ""),
+            textColumn("tier", ""),
+            intColumn("durationDays"),
+            intColumn("amountCents"),
+            textColumn("currency", "CNY"),
+            textColumn("channel", ""),
+            textColumn("status", "PENDING"),
+            intColumn("createdAt"),
+            nullableColumn("paidAt"),
+            intColumn("stockVipExpireTime"),
+            intColumn("quantVipExpireTime"),
+            textColumn("source", "local"),
+            textColumn("note", ""),
+            intColumn("updatedAt")
+        )
+    ),
+    TableSpec(
         name = "posts",
         columnsSql = "`id` TEXT NOT NULL, `author` TEXT NOT NULL, `title` TEXT NOT NULL, " +
             "`content` TEXT NOT NULL, `timeLabel` TEXT NOT NULL, `likes` INTEGER NOT NULL, " +
@@ -598,7 +662,9 @@ private val CURRENT_TABLES = listOf(
         columnsSql = "`date` TEXT NOT NULL, `upCount` INTEGER NOT NULL, `downCount` INTEGER NOT NULL, " +
             "`limitUpCount` INTEGER NOT NULL, `limitDownCount` INTEGER NOT NULL, " +
             "`totalAmount` REAL NOT NULL, `sectorSummary` TEXT NOT NULL, " +
-            "`strongStockSummary` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`date`)",
+            "`strongStockSummary` TEXT NOT NULL, `marketScore` INTEGER NOT NULL, " +
+            "`marketGrade` TEXT NOT NULL, `marketRegime` TEXT NOT NULL, `marketSummary` TEXT NOT NULL, " +
+            "`createdAt` INTEGER NOT NULL, PRIMARY KEY(`date`)",
         columns = listOf(
             textColumn("date", ""),
             intColumn("upCount"),
@@ -608,6 +674,10 @@ private val CURRENT_TABLES = listOf(
             realColumn("totalAmount"),
             textColumn("sectorSummary", ""),
             textColumn("strongStockSummary", ""),
+            intColumn("marketScore"),
+            textColumn("marketGrade", ""),
+            textColumn("marketRegime", ""),
+            textColumn("marketSummary", ""),
             intColumn("createdAt")
         )
     )

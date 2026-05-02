@@ -110,6 +110,7 @@
     <string name="auth_privacy_policy">隐私政策</string>
     <string name="auth_terms_of_service">用户协议</string>
     <string name="auth_support_contact">支持说明</string>
+    <string name="auth_open_external_link">打开链接</string>
     <string name="auth_privacy_policy_message">天线量化当前用于本机研究记录、行情样本展示、VIP 权益状态和每日提醒。未启用服务端同步时，账号、帖子、自选池、持仓、策略、复盘快照和行情缓存主要保存在本机；启用服务端同步后，会同步账号、令牌和权益状态。应用不接券商、不下单、不托管资金。</string>
     <string name="auth_terms_of_service_message">本应用提供行情样本、复盘、模型和历史模拟研究工具，所有内容仅作研究参考，不构成投资建议、收益承诺或具体买卖指令。正式付费发布前，需要补充真实支付、退款、取消、发票、客服主体和数据源授权规则。</string>
     <string name="auth_support_contact_message">账号删除入口已在本页提供。内测阶段如遇登录、权益、通知或数据问题，请通过当前安装包分发渠道联系支持，并附上手机号后四位、问题时间和同步状态。正式发布前应替换为公开客服邮箱、隐私政策 URL 和用户协议 URL。</string>
@@ -159,6 +160,9 @@
     <string name="vip_title">开通VIP会员</string>
     <string name="vip_subtitle">订阅后解锁对应 VIP 功能</string>
     <string name="vip_account_action">登录/注册</string>
+    <string name="vip_order_history_title">订阅订单</string>
+    <string name="vip_order_refresh">刷新</string>
+    <string name="vip_order_empty">暂无订阅订单记录</string>
     <string name="vip_recommended_tag">推荐</string>
     <string name="vip_badge_content_description">VIP 标识</string>
 

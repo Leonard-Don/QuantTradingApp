@@ -14,6 +14,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
 import com.tianxian.quant.databinding.FragmentReviewBinding
 import com.tianxian.quant.model.DailyResearchBriefReport
+import com.tianxian.quant.model.MarketAnalysisReport
 import com.tianxian.quant.model.PortfolioHolding
 import com.tianxian.quant.model.PortfolioHoldingReport
 import com.tianxian.quant.model.PortfolioStressReport
@@ -159,7 +160,7 @@ class ReviewFragment : Fragment() {
         val data = currentReviewData ?: return
         when (currentTab) {
             0 -> {
-                binding.tvReviewSectionTitle.text = "市场总览说明"
+                binding.tvReviewSectionTitle.text = "市场温度与结构判断"
                 binding.tvHotSectors.text = buildMarketOverviewText(data)
             }
             1 -> {
@@ -184,7 +185,10 @@ class ReviewFragment : Fragment() {
     }
 
     private fun buildMarketOverviewText(data: ReviewData): String {
-        val baseText = "统计口径：当前行情池样本，不代表全市场覆盖。\n日期：${data.date}\n样本成交额：${priceFormat.format(data.totalAmount)}亿\n\n${buildWatchlistOverviewText(data.watchlistStocks)}"
+        val analysisText = data.marketAnalysisReport?.let {
+            buildMarketAnalysisText(it)
+        } ?: "市场温度：正在等待有效行情池样本。"
+        val baseText = "$analysisText\n\n统计口径：当前行情池样本，不代表全市场覆盖。\n日期：${data.date}\n样本成交额：${priceFormat.format(data.totalAmount)}亿\n\n${buildWatchlistOverviewText(data.watchlistStocks)}"
         if (!isVipActive) return baseText
 
         val total = (data.upCount + data.downCount).coerceAtLeast(1)
@@ -196,6 +200,38 @@ class ReviewFragment : Fragment() {
         } ?: "暂无可用板块样本"
 
         return "$baseText\n\nVIP样本拆解：上涨样本占比 ${String.format(Locale.CHINA, "%.1f", upRatio)}%；$sectorText；强势样本记录：$strongNames。\n说明：以上为历史记录和研究参考，不构成投资建议。"
+    }
+
+    private fun buildMarketAnalysisText(report: MarketAnalysisReport): String {
+        val sectors = report.focusSectors.joinToString("\n") {
+            "· ${it.name}：平均涨跌 ${formatPercent(it.changePercent)}，样本成交额 ${priceFormat.format(it.capitalFlow)}亿，代表样本 ${it.leadingStock}"
+        }.ifBlank { "· 暂无可用板块样本。" }
+        val stocks = report.focusStocks.joinToString("\n") {
+            "· ${it.name}(${it.code})：涨跌 ${formatPercent(it.changePercent)}，成交额 ${priceFormat.format(it.turnover)}亿，行业 ${it.industry}"
+        }.ifBlank { "· 暂无重点样本。" }
+        val risks = report.riskItems.joinToString("\n") { "· $it" }
+        val actions = report.researchActions.joinToString("\n") { "· $it" }
+        val diagnostics = listOf(
+            report.indexAlignmentText,
+            report.sourceText,
+            report.qualityText
+        ).filter { it.isNotBlank() }.joinToString("\n")
+
+        return buildString {
+            append("市场温度：${report.score}/100（${report.grade}｜${report.regime}）\n")
+            append("${report.breadthText}\n")
+            append("${report.turnoverText}\n")
+            append("${report.sectorText}\n")
+            append("${report.watchlistText}\n")
+            if (diagnostics.isNotBlank()) {
+                append("$diagnostics\n")
+            }
+            append("\n重点板块：\n$sectors\n\n")
+            append("重点样本：\n$stocks\n\n")
+            append("风险雷达：\n$risks\n\n")
+            append("复盘动作：\n$actions\n\n")
+            append("说明：市场温度只基于当前样本、成交额、板块字段和指数 quote 做结构判断，不构成投资建议。")
+        }
     }
 
     private fun buildWatchlistOverviewText(stocks: List<StockInfo>): String {
@@ -287,6 +323,7 @@ class ReviewFragment : Fragment() {
                 "${snapshot.date}\n" +
                     "上涨/下跌样本：${snapshot.upCount}/${snapshot.downCount}，涨停/跌停样本：${snapshot.limitUpCount}/${snapshot.limitDownCount}\n" +
                     "样本成交额：${priceFormat.format(snapshot.totalAmount)}亿\n" +
+                    snapshotMarketLine(snapshot) +
                     "板块记录：${snapshot.sectorSummary.ifBlank { "暂无" }}\n" +
                     "强势样本：${snapshot.strongStockSummary.ifBlank { "暂无" }}"
             }
@@ -623,6 +660,7 @@ class ReviewFragment : Fragment() {
             append("VIP历史摘要：已保存 ${history.size} 条本机复盘快照。\n")
             append("最近快照：${latest.date}，上涨/下跌样本 ${latest.upCount}/${latest.downCount}，")
             append("样本成交额 ${priceFormat.format(latest.totalAmount)}亿。\n")
+            append(buildMarketSnapshotTrend(history))
         }
 
         if (history.size < 2) {
@@ -640,6 +678,31 @@ class ReviewFragment : Fragment() {
             "涨停样本 ${formatSignedCount(latest.limitUpCount - previous.limitUpCount)}，" +
             "跌停样本 ${formatSignedCount(latest.limitDownCount - previous.limitDownCount)}。\n" +
             "说明：历史回溯仅比较本机样本记录，用于复盘观察，不构成投资建议。"
+    }
+
+    private fun snapshotMarketLine(snapshot: ReviewSnapshot): String {
+        if (snapshot.marketScore <= 0) return ""
+        val summary = snapshot.marketSummary.takeIf { it.isNotBlank() }
+            ?.let { "\n市场摘要：${it.take(120)}${if (it.length > 120) "..." else ""}" }
+            .orEmpty()
+        return "市场温度：${snapshot.marketScore}/100（${snapshot.marketGrade.ifBlank { "暂无" }}｜${snapshot.marketRegime.ifBlank { "暂无" }}）$summary\n"
+    }
+
+    private fun buildMarketSnapshotTrend(history: List<ReviewSnapshot>): String {
+        val valid = history.filter { it.marketScore > 0 }
+        if (valid.isEmpty()) {
+            return "市场温度：旧快照暂无温度字段，刷新后会开始沉淀趋势。\n"
+        }
+
+        val latest = valid.first()
+        val trendLine = valid.take(5).joinToString(" -> ") {
+            "${it.date.takeLast(5)} ${it.marketScore}/${it.marketRegime.ifBlank { "暂无" }}"
+        }
+        val compareText = valid.getOrNull(1)?.let { previous ->
+            val delta = latest.marketScore - previous.marketScore
+            "，较上一快照 ${formatSignedCount(delta)} 分（${previous.marketRegime.ifBlank { "暂无" }} -> ${latest.marketRegime.ifBlank { "暂无" }}）"
+        }.orEmpty()
+        return "市场温度：${latest.marketScore}/100（${latest.marketGrade.ifBlank { "暂无" }}｜${latest.marketRegime.ifBlank { "暂无" }}）$compareText。\n最近趋势：$trendLine。\n"
     }
 
     private fun formatPercent(value: Double): String {
