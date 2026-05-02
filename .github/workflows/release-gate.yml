@@ -1,0 +1,49 @@
+name: Release Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this gate is being run (release tag, RC, ad-hoc audit)"
+        required: false
+        default: "manual"
+  push:
+    tags:
+      - "release-*"
+
+jobs:
+  paid-release-gate:
+    name: Verify paid release configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform components
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Run paid release configuration gate
+        env:
+          TIANXIAN_PRODUCTION_API_BASE_URL: ${{ secrets.TIANXIAN_PRODUCTION_API_BASE_URL }}
+          TIANXIAN_PRIVACY_POLICY_URL: ${{ secrets.TIANXIAN_PRIVACY_POLICY_URL }}
+          TIANXIAN_TERMS_URL: ${{ secrets.TIANXIAN_TERMS_URL }}
+          TIANXIAN_DATA_DISCLAIMER_URL: ${{ secrets.TIANXIAN_DATA_DISCLAIMER_URL }}
+          TIANXIAN_SUPPORT_EMAIL: ${{ secrets.TIANXIAN_SUPPORT_EMAIL }}
+          TIANXIAN_RELEASE_KEYSTORE: ${{ secrets.TIANXIAN_RELEASE_KEYSTORE }}
+          TIANXIAN_RELEASE_STORE_PASSWORD: ${{ secrets.TIANXIAN_RELEASE_STORE_PASSWORD }}
+          TIANXIAN_RELEASE_KEY_ALIAS: ${{ secrets.TIANXIAN_RELEASE_KEY_ALIAS }}
+          TIANXIAN_RELEASE_KEY_PASSWORD: ${{ secrets.TIANXIAN_RELEASE_KEY_PASSWORD }}
+        run: scripts/verify_paid_release_config.sh

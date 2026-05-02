@@ -11,6 +11,11 @@ WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/txq-emulator-smoke.XXXXXX")"
 STARTED_EMULATOR=0
 SERIAL="${SERIAL:-}"
 SDK_DIR=""
+SCREENSHOT_DIR="${SCREENSHOT_DIR:-}"
+EMULATOR_HEADLESS="${EMULATOR_HEADLESS:-1}"
+EMULATOR_GPU="${EMULATOR_GPU:-swiftshader_indirect}"
+EMULATOR_BOOT_TIMEOUT_SECONDS="${EMULATOR_BOOT_TIMEOUT_SECONDS:-300}"
+ADB_WAIT_TIMEOUT_SECONDS="${ADB_WAIT_TIMEOUT_SECONDS:-180}"
 
 cleanup() {
   local exit_code=$?
@@ -67,9 +72,43 @@ first_connected_device() {
   "$SDK_DIR/platform-tools/adb" devices | awk 'NR > 1 && $2 == "device" { print $1; exit }'
 }
 
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$seconds" "$@"
+  else
+    "$@" &
+    local pid=$!
+    local elapsed=0
+    while kill -0 "$pid" 2>/dev/null; do
+      if [[ $elapsed -ge $seconds ]]; then
+        kill -TERM "$pid" 2>/dev/null || true
+        sleep 1
+        kill -KILL "$pid" 2>/dev/null || true
+        return 124
+      fi
+      sleep 1
+      elapsed=$(( elapsed + 1 ))
+    done
+    wait "$pid"
+  fi
+}
+
 wait_for_boot() {
-  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" wait-for-device
+  if ! run_with_timeout "$ADB_WAIT_TIMEOUT_SECONDS" \
+    "$SDK_DIR/platform-tools/adb" -s "$SERIAL" wait-for-device; then
+    echo "Timed out waiting for adb device $SERIAL after ${ADB_WAIT_TIMEOUT_SECONDS}s" >&2
+    exit 1
+  fi
+  local deadline=$(( $(date +%s) + EMULATOR_BOOT_TIMEOUT_SECONDS ))
   until [[ "$("$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; do
+    if (( $(date +%s) >= deadline )); then
+      echo "Emulator $SERIAL did not finish booting within ${EMULATOR_BOOT_TIMEOUT_SECONDS}s" >&2
+      exit 1
+    fi
     sleep 2
   done
 }
@@ -209,6 +248,32 @@ tap_node_points() {
   done <<< "$points"
 }
 
+capture_screenshot() {
+  local name="$1"
+  if [[ -z "$SCREENSHOT_DIR" ]]; then
+    return
+  fi
+  mkdir -p "$SCREENSHOT_DIR"
+  local output="$SCREENSHOT_DIR/$name.png"
+  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" exec-out screencap -p > "$output"
+  python3 - "$output" <<'PY'
+from pathlib import Path
+import sys
+
+from PIL import Image
+
+path = Path(sys.argv[1])
+with Image.open(path).convert("RGB") as image:
+    thumb = image.resize((64, 64))
+    colors = thumb.getcolors(maxcolors=4096) or []
+    non_black = sum(count for count, color in colors if color != (0, 0, 0))
+    total = sum(count for count, _ in colors)
+    if total == 0 or non_black / total < 0.05:
+        raise SystemExit(f"Screenshot appears blank or black: {path}")
+PY
+  echo "Captured screenshot: $output"
+}
+
 select_review_tab() {
   local label="$1"
   local expected_title="$2"
@@ -258,18 +323,28 @@ if [[ -z "$SERIAL" ]]; then
     exit 1
   fi
   echo "== Starting emulator: $AVD_NAME =="
+  emulator_args=(
+    -avd "$AVD_NAME"
+    -gpu "$EMULATOR_GPU"
+    -no-snapshot
+    -no-audio
+    -no-boot-anim
+    -netdelay none
+    -netspeed full
+  )
+  if [[ "$EMULATOR_HEADLESS" == "1" ]]; then
+    emulator_args+=(-no-window)
+  fi
   nohup "$SDK_DIR/emulator/emulator" \
-    -avd "$AVD_NAME" \
-    -no-window \
-    -gpu swiftshader_indirect \
-    -no-snapshot \
-    -no-audio \
-    -no-boot-anim \
-    -netdelay none \
-    -netspeed full \
+    "${emulator_args[@]}" \
     > "$WORK_DIR/emulator.log" 2>&1 &
   STARTED_EMULATOR=1
-  "$SDK_DIR/platform-tools/adb" wait-for-device
+  if ! run_with_timeout "$ADB_WAIT_TIMEOUT_SECONDS" \
+    "$SDK_DIR/platform-tools/adb" wait-for-device; then
+    echo "Emulator did not register with adb within ${ADB_WAIT_TIMEOUT_SECONDS}s" >&2
+    sed -n '1,80p' "$WORK_DIR/emulator.log" >&2 || true
+    exit 1
+  fi
   SERIAL="$(first_connected_device)"
 fi
 
@@ -292,6 +367,8 @@ fi
 "$SDK_DIR/platform-tools/adb" -s "$SERIAL" logcat -c
 
 echo "== Launching app =="
+"$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+"$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell wm dismiss-keyguard >/dev/null 2>&1 || true
 "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell am start -n "$MAIN_ACTIVITY" >/dev/null
 sleep 3
 
@@ -309,6 +386,7 @@ sleep 1
 REVIEW_XML="$WORK_DIR/review.xml"
 dump_ui "$REVIEW_XML"
 assert_node "$REVIEW_XML" "text" "市场概况"
+capture_screenshot "02_review"
 select_review_tab "自选体检" "VIP自选池体检"
 select_review_tab "持仓组合" "VIP持仓组合"
 select_review_tab "压力测试" "VIP自选池压力测试"
@@ -320,6 +398,7 @@ sleep 1
 COMMUNITY_XML="$WORK_DIR/community.xml"
 dump_ui "$COMMUNITY_XML"
 assert_node "$COMMUNITY_XML" "content-desc" "发布帖子"
+capture_screenshot "03_community"
 for _ in 1 2 3 4; do
   if has_node "$COMMUNITY_XML" "text" "消费板块估值分位笔记"; then
     break
@@ -344,6 +423,7 @@ dump_ui "$QUANT_XML"
 assert_node "$QUANT_XML" "text" "模型信号观察"
 assert_node "$QUANT_XML" "text" "模型诊断(VIP)"
 assert_node "$QUANT_XML" "text" "研究模型"
+capture_screenshot "04_quant"
 
 tap_node "$QUANT_XML" "content-desc" "选股"
 sleep 1
@@ -358,6 +438,7 @@ for _ in 1 2 3 4 5; do
   dump_ui "$STOCK_XML"
 done
 assert_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"
+capture_screenshot "01_stock_home"
 tap_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"
 sleep 1
 STOCK_DETAIL_XML="$WORK_DIR/stock-detail.xml"
@@ -385,6 +466,7 @@ dump_ui "$VIP_XML"
 assert_focus_contains "com.tianxian.quant/.ui.vip.VipActivity"
 assert_node "$VIP_XML" "text" "开通VIP会员"
 assert_node "$VIP_XML" "text" "登录/注册"
+capture_screenshot "05_vip"
 tap_node "$VIP_XML" "text" "登录/注册"
 sleep 2
 
@@ -396,6 +478,7 @@ assert_node "$AUTH_XML" "text" "账号状态"
 assert_node "$AUTH_XML" "text" "手机号"
 assert_node "$AUTH_XML" "text" "密码"
 assert_node "$AUTH_XML" "text" "开启每日研究提醒"
+capture_screenshot "06_auth"
 
 echo "== Checking crash buffer =="
 CRASH_LOG="$WORK_DIR/crash.log"

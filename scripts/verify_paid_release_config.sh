@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
+
+cd "$ROOT_DIR/TianXianQuant"
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
   HOMEBREW_JDK="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
@@ -13,23 +14,23 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
   fi
 fi
 
-if [[ -z "${JAVA_HOME:-}" ]]; then
-  echo "JAVA_HOME is not set and a local JDK 17 was not found." >&2
-  exit 1
-fi
-
-if [[ -n "${TIANXIAN_RELEASE_KEYSTORE:-}" && ! -f "$TIANXIAN_RELEASE_KEYSTORE" ]]; then
-  echo "TIANXIAN_RELEASE_KEYSTORE points to a missing file: $TIANXIAN_RELEASE_KEYSTORE" >&2
-  exit 1
-fi
-
 args=(
-  :app:assembleRelease
-  :app:bundleRelease
+  :app:verifyPaidReleaseConfig
+  -PtianxianBackendSyncEnabled=true
+  -PtianxianRequireBackendPaymentSync=true
+  "-PtianxianApiBaseUrl=${TIANXIAN_PRODUCTION_API_BASE_URL:-}"
+  "-PtianxianPrivacyPolicyUrl=${TIANXIAN_PRIVACY_POLICY_URL:-}"
+  "-PtianxianTermsUrl=${TIANXIAN_TERMS_URL:-}"
+  "-PtianxianDataDisclaimerUrl=${TIANXIAN_DATA_DISCLAIMER_URL:-}"
+  "-PtianxianSupportEmail=${TIANXIAN_SUPPORT_EMAIL:-}"
   --console=plain
 )
 
 if [[ -n "${TIANXIAN_RELEASE_KEYSTORE:-}" ]]; then
+  if [[ ! -f "$TIANXIAN_RELEASE_KEYSTORE" ]]; then
+    echo "TIANXIAN_RELEASE_KEYSTORE points to a missing file: $TIANXIAN_RELEASE_KEYSTORE" >&2
+    exit 1
+  fi
   args+=("-PtianxianReleaseKeystore=$TIANXIAN_RELEASE_KEYSTORE")
 fi
 if [[ -n "${TIANXIAN_RELEASE_STORE_PASSWORD:-}" ]]; then
@@ -42,10 +43,4 @@ if [[ -n "${TIANXIAN_RELEASE_KEY_PASSWORD:-}" ]]; then
   args+=("-PtianxianReleaseKeyPassword=$TIANXIAN_RELEASE_KEY_PASSWORD")
 fi
 
-"$ROOT_DIR/gradlew" "${args[@]}"
-
-echo "Release APK:"
-find "$ROOT_DIR/app/build/outputs/apk/release" -name '*.apk' -maxdepth 1 -print
-
-echo "Release AAB:"
-find "$ROOT_DIR/app/build/outputs/bundle/release" -name '*.aab' -maxdepth 1 -print
+./gradlew "${args[@]}"

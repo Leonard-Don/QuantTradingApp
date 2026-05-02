@@ -1,0 +1,808 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 12,
+    "identityHash": "9e8b8feb8e0324ec50789f1af70f81b6",
+    "entities": [
+      {
+        "tableName": "user_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `displayName` TEXT NOT NULL, `phone` TEXT, `passwordHash` TEXT, `isLoggedIn` INTEGER NOT NULL, `isVip` INTEGER NOT NULL, `vipExpireTime` INTEGER NOT NULL, `stockVipExpireTime` INTEGER NOT NULL, `quantVipExpireTime` INTEGER NOT NULL, `notificationsEnabled` INTEGER NOT NULL, `serverUserId` TEXT, `backendAccessToken` TEXT, `backendRefreshToken` TEXT, `backendTokenExpiresAt` INTEGER NOT NULL, `backendGraceUntil` INTEGER NOT NULL, `backendSyncStatus` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `lastLoginAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "passwordHash",
+            "columnName": "passwordHash",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isLoggedIn",
+            "columnName": "isLoggedIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVip",
+            "columnName": "isVip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vipExpireTime",
+            "columnName": "vipExpireTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockVipExpireTime",
+            "columnName": "stockVipExpireTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantVipExpireTime",
+            "columnName": "quantVipExpireTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationsEnabled",
+            "columnName": "notificationsEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverUserId",
+            "columnName": "serverUserId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "backendAccessToken",
+            "columnName": "backendAccessToken",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "backendRefreshToken",
+            "columnName": "backendRefreshToken",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "backendTokenExpiresAt",
+            "columnName": "backendTokenExpiresAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "backendGraceUntil",
+            "columnName": "backendGraceUntil",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "backendSyncStatus",
+            "columnName": "backendSyncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastLoginAt",
+            "columnName": "lastLoginAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "subscription_orders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`orderId` TEXT NOT NULL, `tier` TEXT NOT NULL, `durationDays` INTEGER NOT NULL, `amountCents` INTEGER NOT NULL, `currency` TEXT NOT NULL, `channel` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `paidAt` INTEGER, `stockVipExpireTime` INTEGER NOT NULL, `quantVipExpireTime` INTEGER NOT NULL, `source` TEXT NOT NULL, `note` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`orderId`))",
+        "fields": [
+          {
+            "fieldPath": "orderId",
+            "columnName": "orderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tier",
+            "columnName": "tier",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationDays",
+            "columnName": "durationDays",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountCents",
+            "columnName": "amountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currency",
+            "columnName": "currency",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "channel",
+            "columnName": "channel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paidAt",
+            "columnName": "paidAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stockVipExpireTime",
+            "columnName": "stockVipExpireTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantVipExpireTime",
+            "columnName": "quantVipExpireTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "orderId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "posts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `author` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `timeLabel` TEXT NOT NULL, `likes` INTEGER NOT NULL, `comments` INTEGER NOT NULL, `category` TEXT NOT NULL, `isVip` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "author",
+            "columnName": "author",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeLabel",
+            "columnName": "timeLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "likes",
+            "columnName": "likes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comments",
+            "columnName": "comments",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVip",
+            "columnName": "isVip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "post_comments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `postId` TEXT NOT NULL, `author` TEXT NOT NULL, `content` TEXT NOT NULL, `timeLabel` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postId",
+            "columnName": "postId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "author",
+            "columnName": "author",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeLabel",
+            "columnName": "timeLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "stock_filter",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sortMode` TEXT NOT NULL, `industry` TEXT, `minChangePercent` REAL, `minVolume` INTEGER, `minTurnover` REAL, `maxPe` REAL, `maxPb` REAL, `minMarketCap` REAL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortMode",
+            "columnName": "sortMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "industry",
+            "columnName": "industry",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "minChangePercent",
+            "columnName": "minChangePercent",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "minVolume",
+            "columnName": "minVolume",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "minTurnover",
+            "columnName": "minTurnover",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "maxPe",
+            "columnName": "maxPe",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "maxPb",
+            "columnName": "maxPb",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "minMarketCap",
+            "columnName": "minMarketCap",
+            "affinity": "REAL",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "stock_watchlist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`code` TEXT NOT NULL, `name` TEXT NOT NULL, `industry` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`code`))",
+        "fields": [
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "industry",
+            "columnName": "industry",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "code"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "portfolio_holdings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`code` TEXT NOT NULL, `name` TEXT NOT NULL, `costPrice` REAL NOT NULL, `quantity` REAL NOT NULL, `note` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`code`))",
+        "fields": [
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "costPrice",
+            "columnName": "costPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "code"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "stock_quote_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`code` TEXT NOT NULL, `name` TEXT NOT NULL, `price` REAL NOT NULL, `changePercent` REAL NOT NULL, `volume` INTEGER NOT NULL, `marketCap` REAL NOT NULL, `pe` REAL NOT NULL, `pb` REAL NOT NULL, `industry` TEXT NOT NULL, `turnover` REAL NOT NULL, `high` REAL NOT NULL, `low` REAL NOT NULL, `open` REAL NOT NULL, `yesterdayClose` REAL NOT NULL, `ma5` REAL NOT NULL, `ma10` REAL NOT NULL, `ma20` REAL NOT NULL, `source` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`code`))",
+        "fields": [
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "price",
+            "columnName": "price",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changePercent",
+            "columnName": "changePercent",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volume",
+            "columnName": "volume",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marketCap",
+            "columnName": "marketCap",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pe",
+            "columnName": "pe",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pb",
+            "columnName": "pb",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "industry",
+            "columnName": "industry",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "turnover",
+            "columnName": "turnover",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "high",
+            "columnName": "high",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "low",
+            "columnName": "low",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "open",
+            "columnName": "open",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "yesterdayClose",
+            "columnName": "yesterdayClose",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ma5",
+            "columnName": "ma5",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ma10",
+            "columnName": "ma10",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ma20",
+            "columnName": "ma20",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fetchedAt",
+            "columnName": "fetchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "code"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "custom_strategies",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `winRate` REAL NOT NULL, `maxDrawdown` REAL NOT NULL, `sharpeRatio` REAL NOT NULL, `annualReturn` REAL NOT NULL, `totalTrades` INTEGER NOT NULL, `profitFactor` REAL NOT NULL, `isVip` INTEGER NOT NULL, `formula` TEXT NOT NULL, `tagsCsv` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "winRate",
+            "columnName": "winRate",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxDrawdown",
+            "columnName": "maxDrawdown",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sharpeRatio",
+            "columnName": "sharpeRatio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "annualReturn",
+            "columnName": "annualReturn",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalTrades",
+            "columnName": "totalTrades",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profitFactor",
+            "columnName": "profitFactor",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVip",
+            "columnName": "isVip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "formula",
+            "columnName": "formula",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagsCsv",
+            "columnName": "tagsCsv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "review_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `upCount` INTEGER NOT NULL, `downCount` INTEGER NOT NULL, `limitUpCount` INTEGER NOT NULL, `limitDownCount` INTEGER NOT NULL, `totalAmount` REAL NOT NULL, `sectorSummary` TEXT NOT NULL, `strongStockSummary` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upCount",
+            "columnName": "upCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downCount",
+            "columnName": "downCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "limitUpCount",
+            "columnName": "limitUpCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "limitDownCount",
+            "columnName": "limitDownCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "totalAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sectorSummary",
+            "columnName": "sectorSummary",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "strongStockSummary",
+            "columnName": "strongStockSummary",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9e8b8feb8e0324ec50789f1af70f81b6')"
+    ]
+  }
+}

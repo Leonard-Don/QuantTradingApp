@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import time
 
 from fastapi.testclient import TestClient
 
@@ -128,7 +129,14 @@ def test_order_payment_callback_extends_stock_entitlement(tmp_path):
     )
     assert status.status_code == 200
     assert status.json()["status"] == "PAID"
+    assert status.json()["tier"] == "STOCK"
+    assert status.json()["amountCents"] == 6800
     assert status.json()["entitlement"]["stockVipExpireTime"] == paid.json()["stockVipExpireTime"]
+
+    orders = client.get("/v1/me/orders", headers=auth_headers(auth["accessToken"]))
+    assert orders.status_code == 200
+    assert orders.json()[0]["orderId"] == order["orderId"]
+    assert orders.json()[0]["status"] == "PAID"
 
 
 def test_payment_callback_is_idempotent_but_rejects_duplicate_provider_transaction(tmp_path):
@@ -205,6 +213,99 @@ def test_refund_reduces_entitlement_and_keeps_audit_state(tmp_path):
     )
     assert status.status_code == 200
     assert status.json()["status"] == "REFUNDED"
+    assert status.json()["paidAt"] is not None
+
+
+def test_order_list_tracks_pending_paid_and_cancelled_statuses(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+
+    pending_order = create_order(client, auth["accessToken"], "client-order-list-pending")
+    paid_order = create_order(client, auth["accessToken"], "client-order-list-paid", tier="QUANT")
+
+    paid = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": paid_order["orderId"],
+            "providerTransactionId": "provider-tx-list-paid",
+            "amountCents": paid_order["amountCents"],
+        },
+    )
+    assert paid.status_code == 200
+
+    cancelled = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": pending_order["orderId"],
+            "providerTransactionId": "provider-tx-list-cancelled",
+            "amountCents": pending_order["amountCents"],
+            "eventType": "CANCELLED",
+        },
+    )
+    assert cancelled.status_code == 200
+
+    orders = client.get("/v1/me/orders?limit=10", headers=auth_headers(auth["accessToken"]))
+    assert orders.status_code == 200
+    by_id = {order["orderId"]: order for order in orders.json()}
+    assert by_id[pending_order["orderId"]]["status"] == "CANCELLED"
+    assert by_id[paid_order["orderId"]]["status"] == "PAID"
+    assert by_id[paid_order["orderId"]]["tier"] == "QUANT"
+    assert by_id[paid_order["orderId"]]["entitlement"]["quantVipExpireTime"] > 0
+
+
+def test_admin_audit_is_disabled_without_configured_token(tmp_path, monkeypatch):
+    monkeypatch.delenv("TIANXIAN_ADMIN_TOKEN", raising=False)
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+
+    response = client.get("/v1/admin/audit", headers={"X-Admin-Token": "admin-secret"})
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin disabled"
+
+
+def test_admin_audit_rejects_invalid_token(tmp_path, monkeypatch):
+    monkeypatch.setenv("TIANXIAN_ADMIN_TOKEN", "admin-secret")
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+
+    response = client.get("/v1/admin/audit", headers={"X-Admin-Token": "wrong-token"})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid admin token"
+
+
+def test_admin_audit_returns_read_only_snapshot_and_html_page(tmp_path, monkeypatch):
+    monkeypatch.setenv("TIANXIAN_ADMIN_TOKEN", "admin-secret")
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+    order = create_order(client, auth["accessToken"], "client-order-admin")
+
+    paid = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-admin",
+            "amountCents": order["amountCents"],
+        },
+    )
+    assert paid.status_code == 200
+
+    snapshot = client.get("/v1/admin/audit?limit=10", headers={"X-Admin-Token": "admin-secret"})
+    assert snapshot.status_code == 200
+    data = snapshot.json()
+    assert data["counts"]["users"] == 1
+    assert data["counts"]["orders"] == 1
+    assert data["counts"]["paymentCallbacks"] == 1
+    assert data["counts"]["activeEntitlements"] == 1
+    assert data["orderStatusCounts"]["PAID"] == 1
+    assert data["recentOrders"][0]["order_id"] == order["orderId"]
+    assert data["recentPaymentCallbacks"][0]["provider_transaction_id"] == "provider-tx-admin"
+
+    html = client.get("/admin?token=admin-secret")
+    assert html.status_code == 200
+    assert "TianXianQuant Admin Audit" in html.text
+    assert order["orderId"] in html.text
+    assert "provider-tx-admin" in html.text
+    assert "13800000000" in html.text
 
 
 def test_market_proxy_requires_vip_and_returns_not_configured_contract(tmp_path):
@@ -255,7 +356,11 @@ def test_payment_callback_signature_can_be_required(tmp_path, monkeypatch):
     )
     assert unsigned.status_code == 401
 
-    message = f"{order['orderId']}:provider-tx-signature:{order['amountCents']}:PAID"
+    timestamp = int(time.time() * 1000)
+    message = (
+        f"{timestamp}:"
+        f"{order['orderId']}:provider-tx-signature:{order['amountCents']}:PAID"
+    )
     signature = hmac.new(b"secret", message.encode("utf-8"), hashlib.sha256).hexdigest()
     signed = client.post(
         "/v1/payment/callbacks/WECHAT",
@@ -263,11 +368,92 @@ def test_payment_callback_signature_can_be_required(tmp_path, monkeypatch):
             "orderId": order["orderId"],
             "providerTransactionId": "provider-tx-signature",
             "amountCents": order["amountCents"],
+            "timestamp": timestamp,
             "signature": signature,
         },
     )
     assert signed.status_code == 200
     assert signed.json()["status"] == "PAID"
+
+
+def test_payment_callback_rejects_missing_timestamp_when_signed(tmp_path, monkeypatch):
+    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+    order = create_order(client, auth["accessToken"], "client-order-no-ts")
+
+    message = f"{order['orderId']}:provider-tx-no-ts:{order['amountCents']}:PAID"
+    signature = hmac.new(b"secret", message.encode("utf-8"), hashlib.sha256).hexdigest()
+    response = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-no-ts",
+            "amountCents": order["amountCents"],
+            "signature": signature,
+        },
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "payment callback timestamp is required"
+
+
+def test_payment_callback_rejects_replayed_old_timestamp(tmp_path, monkeypatch):
+    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+    order = create_order(client, auth["accessToken"], "client-order-replay")
+
+    stale_timestamp = int(time.time() * 1000) - 10 * 60 * 1000
+    message = (
+        f"{stale_timestamp}:"
+        f"{order['orderId']}:provider-tx-replay:{order['amountCents']}:PAID"
+    )
+    signature = hmac.new(b"secret", message.encode("utf-8"), hashlib.sha256).hexdigest()
+    response = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-replay",
+            "amountCents": order["amountCents"],
+            "timestamp": stale_timestamp,
+            "signature": signature,
+        },
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "payment callback timestamp outside allowed window"
+
+
+def test_payment_callback_failure_is_recorded_in_audit(tmp_path, monkeypatch):
+    monkeypatch.setenv("TIANXIAN_ADMIN_TOKEN", "admin-secret")
+    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+    order = create_order(client, auth["accessToken"], "client-order-audit")
+
+    bad = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-audit",
+            "amountCents": order["amountCents"],
+            "timestamp": int(time.time() * 1000),
+            "signature": "deadbeef",
+        },
+    )
+    assert bad.status_code == 401
+
+    snapshot = client.get(
+        "/v1/admin/audit?limit=10",
+        headers={"X-Admin-Token": "admin-secret"},
+    )
+    assert snapshot.status_code == 200
+    callbacks = snapshot.json()["recentPaymentCallbacks"]
+    assert callbacks
+    assert callbacks[0]["accepted"] == 0
+    assert callbacks[0]["detail"].startswith("signature:")
 
 
 def test_delete_account_removes_user_and_invalidates_token(tmp_path):
@@ -283,6 +469,36 @@ def test_delete_account_removes_user_and_invalidates_token(tmp_path):
         headers=auth_headers(auth["accessToken"]),
     )
     assert entitlement.status_code == 401
+
+
+def test_health_reports_db_status(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["db"] == "ok"
+    assert isinstance(body["dbLatencyMs"], int)
+    assert isinstance(body["serverTime"], int)
+
+
+def test_rate_limit_returns_429_after_burst(tmp_path):
+    client = TestClient(
+        create_app(
+            str(tmp_path / "test.db"),
+            rate_limit_rules={"/v1/auth/login": (3, 60)},
+        )
+    )
+
+    payload = {"phone": "13800000000", "password": "passw0rd", "deviceId": "device-1"}
+    statuses = []
+    for _ in range(5):
+        statuses.append(client.post("/v1/auth/login", json=payload).status_code)
+
+    assert statuses[-1] == 429
+    assert statuses.count(429) >= 1
 
 
 def test_callback_rejects_amount_mismatch(tmp_path):

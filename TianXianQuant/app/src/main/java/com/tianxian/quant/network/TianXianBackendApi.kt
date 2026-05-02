@@ -76,12 +76,44 @@ data class BackendOrderResponse(
     val paymentPayload: BackendPaymentPayload
 )
 
+data class BackendOrderEntitlement(
+    val stockVipExpireTime: Long,
+    val quantVipExpireTime: Long
+)
+
+data class BackendOrderStatusResponse(
+    val orderId: String,
+    val tier: String,
+    val durationDays: Int,
+    val amountCents: Int,
+    val currency: String,
+    val channel: String,
+    val status: String,
+    val createdAt: Long,
+    val paidAt: Long?,
+    val entitlement: BackendOrderEntitlement?
+)
+
+/**
+ * Payment callback contract.
+ *
+ * In production, the WeChat / Alipay payment provider posts this callback
+ * server-to-server to the TianXianQuant backend with [timestamp] and [signature]
+ * computed against [TIANXIAN_PAYMENT_CALLBACK_SECRET]. The Android client never
+ * issues this callback in Release builds.
+ *
+ * The Debug-only sandbox path included with [TianXianBackendRepository] sends
+ * [timestamp] so the backend can enforce its ±5min replay window even when no
+ * signature is configured.
+ */
 data class BackendPaymentCallbackRequest(
     val orderId: String,
     val providerTransactionId: String,
     val amountCents: Int,
     val sandboxApproved: Boolean = true,
-    val eventType: String = "PAID"
+    val eventType: String = "PAID",
+    val timestamp: Long? = null,
+    val signature: String? = null
 )
 
 data class BackendPaymentCallbackResponse(
@@ -96,7 +128,8 @@ data class BackendAccountSync(
     val success: Boolean,
     val message: String,
     val auth: BackendAuthResponse? = null,
-    val entitlement: BackendEntitlementResponse? = null
+    val entitlement: BackendEntitlementResponse? = null,
+    val order: BackendOrderStatusResponse? = null
 ) {
     companion object {
         fun disabled(): BackendAccountSync = BackendAccountSync(
@@ -105,22 +138,53 @@ data class BackendAccountSync(
             message = "服务端同步未启用，当前使用本机演示账号"
         )
 
-        fun failure(message: String): BackendAccountSync = BackendAccountSync(
+        fun failure(message: String, order: BackendOrderStatusResponse? = null): BackendAccountSync = BackendAccountSync(
             enabled = true,
             success = false,
-            message = message
+            message = message,
+            order = order
         )
 
         fun success(
             auth: BackendAuthResponse?,
             entitlement: BackendEntitlementResponse?,
-            message: String
+            message: String,
+            order: BackendOrderStatusResponse? = null
         ): BackendAccountSync = BackendAccountSync(
             enabled = true,
             success = true,
             message = message,
             auth = auth,
-            entitlement = entitlement
+            entitlement = entitlement,
+            order = order
+        )
+    }
+}
+
+data class BackendOrdersSync(
+    val enabled: Boolean,
+    val success: Boolean,
+    val message: String,
+    val orders: List<BackendOrderStatusResponse> = emptyList()
+) {
+    companion object {
+        fun disabled(): BackendOrdersSync = BackendOrdersSync(
+            enabled = false,
+            success = false,
+            message = "服务端同步未启用，当前展示本机订单记录"
+        )
+
+        fun failure(message: String): BackendOrdersSync = BackendOrdersSync(
+            enabled = true,
+            success = false,
+            message = message
+        )
+
+        fun success(orders: List<BackendOrderStatusResponse>): BackendOrdersSync = BackendOrdersSync(
+            enabled = true,
+            success = true,
+            message = "服务端订单状态已同步",
+            orders = orders
         )
     }
 }
@@ -150,6 +214,17 @@ interface TianXianBackendApi {
         @Header("Authorization") authorization: String,
         @Body request: BackendOrderRequest
     ): BackendOrderResponse
+
+    @GET("v1/orders/{orderId}")
+    suspend fun orderStatus(
+        @Header("Authorization") authorization: String,
+        @Path("orderId") orderId: String
+    ): BackendOrderStatusResponse
+
+    @GET("v1/me/orders")
+    suspend fun orders(
+        @Header("Authorization") authorization: String
+    ): List<BackendOrderStatusResponse>
 
     @POST("v1/payment/callbacks/{channel}")
     suspend fun paymentCallback(
@@ -267,21 +342,45 @@ object TianXianBackendRepository {
                     deviceId = deviceId()
                 )
             )
-            api.paymentCallback(
-                channel.name,
-                BackendPaymentCallbackRequest(
-                    orderId = order.orderId,
-                    providerTransactionId = "sandbox-${UUID.randomUUID()}",
-                    amountCents = order.amountCents
+            val pendingOrder = order.toStatusResponse()
+            runCatching {
+                api.paymentCallback(
+                    channel.name,
+                    BackendPaymentCallbackRequest(
+                        orderId = order.orderId,
+                        providerTransactionId = "sandbox-${UUID.randomUUID()}",
+                        amountCents = order.amountCents,
+                        timestamp = System.currentTimeMillis()
+                    )
                 )
-            )
+            }.getOrElse {
+                return BackendAccountSync.failure(
+                    "服务端订阅同步失败：${it.shortMessage()}",
+                    order = pendingOrder
+                )
+            }
+            val currentOrder = api.orderStatus(bearer(accessToken), order.orderId)
+            val entitlement = loadEntitlements(accessToken)
             BackendAccountSync.success(
                 auth = null,
-                entitlement = loadEntitlements(accessToken),
-                message = "服务端沙盒订单已完成，权益已同步"
+                entitlement = entitlement,
+                message = "服务端沙盒订单已完成，权益已同步",
+                order = currentOrder
             )
         }.getOrElse {
             BackendAccountSync.failure("服务端订阅同步失败：${it.shortMessage()}")
+        }
+    }
+
+    suspend fun fetchOrders(accessToken: String?): BackendOrdersSync {
+        if (!isEnabled) return BackendOrdersSync.disabled()
+        if (accessToken.isNullOrBlank()) {
+            return BackendOrdersSync.failure("缺少服务端访问令牌，无法同步订单")
+        }
+        return runCatching {
+            BackendOrdersSync.success(api.orders(bearer(accessToken)))
+        }.getOrElse {
+            BackendOrdersSync.failure("服务端订单同步失败：${it.shortMessage()}")
         }
     }
 
@@ -307,6 +406,21 @@ object TianXianBackendRepository {
     }
 
     private fun bearer(accessToken: String): String = "Bearer $accessToken"
+
+    private fun BackendOrderResponse.toStatusResponse(): BackendOrderStatusResponse {
+        return BackendOrderStatusResponse(
+            orderId = orderId,
+            tier = tier,
+            durationDays = durationDays,
+            amountCents = amountCents,
+            currency = currency,
+            channel = channel,
+            status = status,
+            createdAt = System.currentTimeMillis(),
+            paidAt = null,
+            entitlement = null
+        )
+    }
 
     private fun deviceId(): String {
         val preferences = MyApp.instance.getSharedPreferences("tianxian_backend", 0)
