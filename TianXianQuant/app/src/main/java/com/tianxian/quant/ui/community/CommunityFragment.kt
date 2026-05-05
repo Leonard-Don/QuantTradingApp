@@ -38,6 +38,7 @@ class CommunityFragment : Fragment() {
     private lateinit var adapter: PostAdapter
     private var pendingVipPost: Post? = null
     private var pendingCommentPost: Post? = null
+    private var pendingPublishedTitle: String? = null
 
     private val communityVipLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -162,7 +163,14 @@ class CommunityFragment : Fragment() {
 
     private fun observeData() {
         viewModel.posts.observe(viewLifecycleOwner) { posts ->
-            adapter.submitList(posts)
+            adapter.submitList(posts) {
+                val title = pendingPublishedTitle ?: return@submitList
+                val index = posts.indexOfFirst { it.title == title }
+                if (index >= 0) {
+                    binding.recyclerView.smoothScrollToPosition(index)
+                    pendingPublishedTitle = null
+                }
+            }
             binding.tvEmptyState.visibility = if (posts.isEmpty()) View.VISIBLE else View.GONE
         }
         viewModel.isVipActive.observe(viewLifecycleOwner) { active ->
@@ -342,6 +350,7 @@ class CommunityFragment : Fragment() {
                     return@setPositiveButton
                 }
 
+                pendingPublishedTitle = title
                 viewModel.addPost(
                     title = title,
                     content = content,

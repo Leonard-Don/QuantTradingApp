@@ -131,6 +131,9 @@ class StockSelectFragment : Fragment() {
         binding.fabFilter?.setOnClickListener {
             showAdvancedFilterDialog()
         }
+        binding.btnClearFilter?.setOnClickListener {
+            viewModel.clearFilters()
+        }
     }
 
     private fun observeData() {
@@ -287,6 +290,11 @@ class StockSelectFragment : Fragment() {
     private fun updateFilterSummary(criteria: StockFilterCriteria) {
         binding.tvFilterSummary.visibility = View.VISIBLE
         binding.tvFilterSummary.text = buildFilterSummary(criteria)
+        binding.btnClearFilter?.visibility = if (criteria.hasActiveFilter()) View.VISIBLE else View.GONE
+    }
+
+    private fun StockFilterCriteria.hasActiveFilter(): Boolean {
+        return this != StockFilterCriteria()
     }
 
     private fun buildFilterSummary(criteria: StockFilterCriteria): String {

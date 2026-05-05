@@ -8,6 +8,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.tianxian.quant.databinding.ActivityMainBinding
+import com.tianxian.quant.ui.vip.VipActivity
 import com.tianxian.quant.util.NotificationHelper
 
 class MainActivity : AppCompatActivity() {
@@ -26,6 +27,14 @@ class MainActivity : AppCompatActivity() {
         val navController = navHostFragment.navController
 
         binding.bottomNav.setupWithNavController(navController)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.actionAccountVip) {
+                startActivity(VipActivity.createIntent(this, finishOnSuccess = true))
+                true
+            } else {
+                false
+            }
+        }
         handleNavigationIntent(intent)
     }
 

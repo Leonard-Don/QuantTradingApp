@@ -244,23 +244,6 @@
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardCornerRadius="12dp">
-
-                <TextView
-                    android:id="@+id/tvHotSectors"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="16dp"
-                    android:textSize="14sp"
-                    android:lineSpacingMultiplier="1.5"
-                    android:textColor="@color/text_primary" />
-
-            </com.google.android.material.card.MaterialCardView>
-
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReviewAction"
                 style="@style/Widget.Material3.Button.OutlinedButton"
@@ -269,6 +252,21 @@
                 android:layout_marginTop="12dp"
                 android:text="@string/review_view_entitlements"
                 android:visibility="gone" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp">
+
+                <LinearLayout
+                    android:id="@+id/reviewContentContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp" />
+
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 

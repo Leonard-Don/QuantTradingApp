@@ -200,6 +200,15 @@ class StockSelectViewModel : ViewModel() {
         applyCurrentFilter()
     }
 
+    fun clearFilters() {
+        criteria = StockFilterCriteria()
+        viewModelScope.launch {
+            LocalStateRepository.saveStockFilter(criteria)
+        }
+        _criteriaState.value = criteria
+        applyCurrentFilter()
+    }
+
     fun getCurrentCriteria(): StockFilterCriteria {
         return criteria
     }

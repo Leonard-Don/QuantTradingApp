@@ -248,6 +248,24 @@ tap_node_points() {
   done <<< "$points"
 }
 
+swipe_review_tabs_left() {
+  local center
+  local y=240
+  if center="$(node_center "$REVIEW_XML" "resource-id" "com.tianxian.quant:id/tabLayout")"; then
+    y="${center##* }"
+  fi
+  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 "$y" 130 "$y" 300
+}
+
+swipe_stock_filters_left() {
+  local center
+  local y=500
+  if center="$(node_center "$VIP_CHIP_XML" "resource-id" "com.tianxian.quant:id/filterChips")"; then
+    y="${center##* }"
+  fi
+  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 930 "$y" 150 "$y" 300
+}
+
 capture_screenshot() {
   local name="$1"
   if [[ -z "$SCREENSHOT_DIR" ]]; then
@@ -279,7 +297,7 @@ select_review_tab() {
   local expected_title="$2"
   for attempt in 1 2 3; do
     if ! has_node "$REVIEW_XML" "text" "$label"; then
-      "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 950 66 130 66 300
+      swipe_review_tabs_left
       sleep 1
       dump_ui "$REVIEW_XML"
     fi
@@ -379,6 +397,19 @@ assert_node "$MAIN_XML" "content-desc" "选股"
 assert_node "$MAIN_XML" "content-desc" "复盘"
 assert_node "$MAIN_XML" "content-desc" "社区"
 assert_node "$MAIN_XML" "content-desc" "量化"
+assert_node "$MAIN_XML" "content-desc" "账号与VIP权益"
+
+echo "== Checking account entry =="
+tap_node "$MAIN_XML" "content-desc" "账号与VIP权益"
+sleep 1
+ACCOUNT_XML="$WORK_DIR/account-vip.xml"
+dump_ui "$ACCOUNT_XML"
+assert_focus_contains "com.tianxian.quant/.ui.vip.VipActivity"
+assert_node "$ACCOUNT_XML" "text" "开通VIP会员"
+"$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input keyevent KEYCODE_BACK
+sleep 1
+dump_ui "$MAIN_XML"
+assert_focus_contains "com.tianxian.quant/.MainActivity"
 
 echo "== Checking main tabs =="
 tap_node "$MAIN_XML" "content-desc" "复盘"
@@ -454,7 +485,7 @@ for _ in 1 2 3 4 5; do
   if has_node "$VIP_CHIP_XML" "text" "高级多因子(VIP)"; then
     break
   fi
-  "$SDK_DIR/platform-tools/adb" -s "$SERIAL" shell input swipe 930 322 150 322 300
+  swipe_stock_filters_left
   sleep 0.5
 done
 assert_node "$VIP_CHIP_XML" "text" "高级多因子(VIP)"

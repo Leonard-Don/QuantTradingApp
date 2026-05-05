@@ -1,12 +1,16 @@
 package com.tianxian.quant.ui.review
 
 import android.content.ClipData
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.google.android.material.tabs.TabLayout
@@ -130,6 +134,44 @@ class ReviewFragment : Fragment() {
         }
     }
 
+    private fun setReviewContent(text: String) {
+        val sections = text
+            .split(Regex("\\n\\s*\\n"))
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .ifEmpty { listOf("暂无内容。") }
+
+        binding.reviewContentContainer.removeAllViews()
+        sections.forEachIndexed { index, section ->
+            binding.reviewContentContainer.addView(createReviewSectionView(section, index))
+        }
+    }
+
+    private fun createReviewSectionView(section: String, index: Int): TextView {
+        return TextView(requireContext()).apply {
+            text = section
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+            textSize = if (index == 0) 14f else 13f
+            setLineSpacing(0f, 1.4f)
+            includeFontPadding = true
+            if (index == 0) {
+                setTypeface(typeface, Typeface.BOLD)
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                if (index > 0) {
+                    topMargin = dp(14)
+                }
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
+
     private fun renderSelectedTab() {
         if (currentTab == 4) {
             renderHistoryTab()
@@ -161,25 +203,25 @@ class ReviewFragment : Fragment() {
         when (currentTab) {
             0 -> {
                 binding.tvReviewSectionTitle.text = "市场温度与结构判断"
-                binding.tvHotSectors.text = buildMarketOverviewText(data)
+                setReviewContent(buildMarketOverviewText(data))
             }
             1 -> {
                 binding.tvReviewSectionTitle.text = "板块轮动分析"
-                binding.tvHotSectors.text = if (data.hotSectors.isEmpty()) {
+                setReviewContent(if (data.hotSectors.isEmpty()) {
                     "暂无可用板块数据。"
                 } else {
                     data.hotSectors.joinToString("\n") {
                         "${it.name}: ${formatPercent(it.changePercent)} | 样本代表: ${it.leadingStock} | 样本成交额: ${priceFormat.format(it.capitalFlow)}亿"
                     }
-                }
+                })
             }
             2 -> {
                 binding.tvReviewSectionTitle.text = "资金流向统计"
-                binding.tvHotSectors.text = buildCapitalFlowText(data)
+                setReviewContent(buildCapitalFlowText(data))
             }
             else -> {
                 binding.tvReviewSectionTitle.text = "龙虎榜数据"
-                binding.tvHotSectors.text = buildDragonListText(data)
+                setReviewContent(buildDragonListText(data))
             }
         }
     }
@@ -301,7 +343,7 @@ class ReviewFragment : Fragment() {
     private fun renderHistoryTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_history_title)
         if (!isVipActive) {
-            binding.tvHotSectors.text = getString(R.string.review_history_vip_locked)
+            setReviewContent(getString(R.string.review_history_vip_locked))
             binding.btnReviewAction.visibility = View.VISIBLE
             binding.btnReviewAction.text = getString(R.string.review_open_vip)
             binding.btnReviewAction.setOnClickListener {
@@ -315,7 +357,7 @@ class ReviewFragment : Fragment() {
         binding.btnReviewAction.setOnClickListener {
             viewModel.refresh()
         }
-        binding.tvHotSectors.text = if (currentHistory.isEmpty()) {
+        setReviewContent(if (currentHistory.isEmpty()) {
             "暂无历史快照。刷新复盘页后会保存当天样本记录。"
         } else {
             buildHistorySummary(currentHistory) + "\n\n历史快照：\n\n" +
@@ -327,13 +369,13 @@ class ReviewFragment : Fragment() {
                     "板块记录：${snapshot.sectorSummary.ifBlank { "暂无" }}\n" +
                     "强势样本：${snapshot.strongStockSummary.ifBlank { "暂无" }}"
             }
-        }
+        })
     }
 
     private fun renderWatchlistHealthTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_watchlist_health_title)
         if (!isVipActive) {
-            binding.tvHotSectors.text = getString(R.string.review_watchlist_health_locked)
+            setReviewContent(getString(R.string.review_watchlist_health_locked))
             binding.btnReviewAction.visibility = View.VISIBLE
             binding.btnReviewAction.text = getString(R.string.review_open_vip)
             binding.btnReviewAction.setOnClickListener {
@@ -350,13 +392,13 @@ class ReviewFragment : Fragment() {
 
         val data = currentReviewData
         val report = data?.watchlistHealthReport
-        binding.tvHotSectors.text = if (data == null) {
+        setReviewContent(if (data == null) {
             "正在加载自选池体检数据。"
         } else if (report == null) {
             "暂无可体检的自选样本。请先在选股页点星标加入自选池，复盘页会基于自选池同步生成 VIP 体检报告。"
         } else {
             buildWatchlistHealthText(report)
-        }
+        })
     }
 
     private fun buildWatchlistHealthText(report: WatchlistHealthReport): String {
@@ -380,7 +422,7 @@ class ReviewFragment : Fragment() {
     private fun renderPortfolioHoldingTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_portfolio_holding_title)
         if (!isVipActive) {
-            binding.tvHotSectors.text = getString(R.string.review_portfolio_holding_locked)
+            setReviewContent(getString(R.string.review_portfolio_holding_locked))
             binding.btnReviewAction.visibility = View.VISIBLE
             binding.btnReviewAction.text = getString(R.string.review_open_vip)
             binding.btnReviewAction.setOnClickListener {
@@ -397,13 +439,13 @@ class ReviewFragment : Fragment() {
 
         val data = currentReviewData
         val report = data?.portfolioHoldingReport
-        binding.tvHotSectors.text = if (data == null) {
+        setReviewContent(if (data == null) {
             "正在加载持仓组合数据。"
         } else if (report == null) {
             "暂无本机持仓记录。点击下方按钮录入股票代码、成本价和数量后，复盘页会基于当前 quote 估算浮盈亏、权重和风险标签。\n\n说明：持仓记录只保存在本机，不连接券商账户。"
         } else {
             buildPortfolioHoldingText(report)
-        }
+        })
     }
 
     private fun buildPortfolioHoldingText(report: PortfolioHoldingReport): String {
@@ -511,7 +553,7 @@ class ReviewFragment : Fragment() {
     private fun renderPortfolioStressTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_portfolio_stress_title)
         if (!isVipActive) {
-            binding.tvHotSectors.text = getString(R.string.review_portfolio_stress_locked)
+            setReviewContent(getString(R.string.review_portfolio_stress_locked))
             binding.btnReviewAction.visibility = View.VISIBLE
             binding.btnReviewAction.text = getString(R.string.review_open_vip)
             binding.btnReviewAction.setOnClickListener {
@@ -528,13 +570,13 @@ class ReviewFragment : Fragment() {
 
         val data = currentReviewData
         val report = data?.portfolioStressReport
-        binding.tvHotSectors.text = if (data == null) {
+        setReviewContent(if (data == null) {
             "正在加载自选池压力测试数据。"
         } else if (report == null) {
             "暂无可压力测试的自选样本。请先在选股页点星标加入自选池，复盘页会基于自选池生成 VIP 情景压力报告。"
         } else {
             buildPortfolioStressText(report)
-        }
+        })
     }
 
     private fun buildPortfolioStressText(report: PortfolioStressReport): String {
@@ -562,7 +604,7 @@ class ReviewFragment : Fragment() {
     private fun renderDailyBriefTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_daily_brief_title)
         if (!isVipActive) {
-            binding.tvHotSectors.text = getString(R.string.review_daily_brief_locked)
+            setReviewContent(getString(R.string.review_daily_brief_locked))
             binding.btnReviewAction.visibility = View.VISIBLE
             binding.btnReviewAction.text = getString(R.string.review_open_vip)
             binding.btnReviewAction.setOnClickListener {
@@ -579,11 +621,11 @@ class ReviewFragment : Fragment() {
 
         val data = currentReviewData
         val report = data?.dailyResearchBriefReport
-        binding.tvHotSectors.text = if (data == null || report == null) {
+        setReviewContent(if (data == null || report == null) {
             "正在生成今日研究简报。"
         } else {
             buildDailyBriefText(report)
-        }
+        })
     }
 
     private fun buildDailyBriefText(report: DailyResearchBriefReport): String {
@@ -605,7 +647,7 @@ class ReviewFragment : Fragment() {
     private fun renderResearchPlanTab() {
         binding.tvReviewSectionTitle.text = getString(R.string.review_research_plan_title)
         if (!isVipActive) {
-            binding.tvHotSectors.text = getString(R.string.review_research_plan_locked)
+            setReviewContent(getString(R.string.review_research_plan_locked))
             binding.btnReviewAction.visibility = View.VISIBLE
             binding.btnReviewAction.text = getString(R.string.review_open_vip)
             binding.btnReviewAction.setOnClickListener {
@@ -625,11 +667,11 @@ class ReviewFragment : Fragment() {
             }
         }
 
-        binding.tvHotSectors.text = if (report == null) {
+        setReviewContent(if (report == null) {
             "正在编排今日研究计划。"
         } else {
             buildResearchPlanText(report)
-        }
+        })
     }
 
     private fun buildResearchPlanText(report: ResearchPlanReport): String {

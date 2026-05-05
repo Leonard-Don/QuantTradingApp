@@ -2,6 +2,7 @@
     <string name="app_name">天线量化</string>
     <string name="dialog_close">关闭</string>
     <string name="dialog_cancel">取消</string>
+    <string name="account_vip_entry">账号与VIP权益</string>
 
     <!-- Tabs -->
     <string name="tab_stock">选股</string>
@@ -14,6 +15,7 @@
     <string name="advanced_filter">高级筛选</string>
     <string name="stock_filter_conditions">筛选条件</string>
     <string name="stock_filter_all">全部</string>
+    <string name="stock_filter_clear">清空筛选</string>
     <string name="stock_filter_industry">行业</string>
     <string name="stock_filter_market_cap">市值</string>
     <string name="stock_filter_moving_average">均线</string>

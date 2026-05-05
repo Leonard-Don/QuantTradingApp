@@ -30,6 +30,7 @@ class QuantFragment : Fragment() {
     private val viewModel: QuantViewModel by viewModels()
     private lateinit var adapter: StrategyAdapter
     private var currentDiagnosticReport: QuantDiagnosticReport? = null
+    private var scrollToCreatedStrategy = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -80,7 +81,12 @@ class QuantFragment : Fragment() {
 
     private fun observeData() {
         viewModel.strategies.observe(viewLifecycleOwner) { strategies ->
-            adapter.submitList(strategies)
+            adapter.submitList(strategies) {
+                if (scrollToCreatedStrategy && strategies.isNotEmpty()) {
+                    binding.recyclerView.smoothScrollToPosition(0)
+                    scrollToCreatedStrategy = false
+                }
+            }
         }
         viewModel.isVipActive.observe(viewLifecycleOwner) { active ->
             adapter.setVipActive(active)
@@ -380,11 +386,15 @@ class QuantFragment : Fragment() {
                     return@setPositiveButton
                 }
 
+                scrollToCreatedStrategy = true
                 val strategy = viewModel.createCustomStrategy(
                     name = name,
                     description = desc.ifEmpty { "自定义量化研究模型" },
                     formula = formula
                 )
+                binding.recyclerView.post {
+                    binding.recyclerView.smoothScrollToPosition(0)
+                }
                 Toast.makeText(requireContext(), "策略创建成功：${strategy.name}", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("取消", null)
