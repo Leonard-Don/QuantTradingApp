@@ -8,4 +8,7 @@
 
     <!-- Adaptive launcher icons are kept in v26 because moving them broke AAPT resource linking. -->
     <issue id="ObsoleteSdkInt" severity="ignore" />
+
+    <!-- targetSdk 35 is intentional for this release; bumping to the latest API is a separate pass. -->
+    <issue id="OldTargetApi" severity="ignore" />
 </lint>
