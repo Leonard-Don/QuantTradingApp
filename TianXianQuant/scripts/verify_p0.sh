@@ -36,16 +36,28 @@ echo "== Gradle P0 verification =="
   :app:assembleRelease \
   --console=plain
 
-LINT_REPORT="$ROOT_DIR/app/build/reports/lint-results-debug.txt"
-if [[ ! -f "$LINT_REPORT" ]]; then
-  echo "Lint report not found: $LINT_REPORT" >&2
+LINT_XML_REPORT="$ROOT_DIR/app/build/reports/lint-results-debug.xml"
+if [[ ! -f "$LINT_XML_REPORT" ]]; then
+  echo "Lint XML report not found: $LINT_XML_REPORT" >&2
+  echo "Expected :app:lintDebug to emit a structured XML report; aborting P0 gate." >&2
   exit 1
 fi
 
-if ! grep -q "No issues found." "$LINT_REPORT"; then
-  echo "lintDebug completed, but the text report still contains issues:" >&2
-  sed -n '1,120p' "$LINT_REPORT" >&2
+if ! LINT_ISSUE_COUNT="$(xmllint --xpath 'count(//issue)' "$LINT_XML_REPORT" 2>/dev/null)"; then
+  echo "Failed to parse lint XML report: $LINT_XML_REPORT" >&2
   exit 1
 fi
 
-echo "P0 verification passed."
+LINT_ISSUE_COUNT="${LINT_ISSUE_COUNT//[[:space:]]/}"
+if [[ ! "$LINT_ISSUE_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "Unexpected issue count from lint XML: '$LINT_ISSUE_COUNT'" >&2
+  exit 1
+fi
+
+if (( LINT_ISSUE_COUNT > 0 )); then
+  echo "lintDebug reported $LINT_ISSUE_COUNT issue(s) in $LINT_XML_REPORT:" >&2
+  { xmllint --format "$LINT_XML_REPORT" 2>/dev/null || sed -n '1,200p' "$LINT_XML_REPORT"; } >&2 || true
+  exit 1
+fi
+
+echo "P0 verification passed (lintDebug: 0 issues)."
