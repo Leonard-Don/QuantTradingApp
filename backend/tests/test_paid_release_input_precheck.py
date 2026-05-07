@@ -19,6 +19,7 @@ secrets.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import textwrap
@@ -28,8 +29,46 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PRECHECK_SCRIPT = REPO_ROOT / "scripts" / "check_paid_release_inputs.sh"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_paid_release_config.sh"
 BUILD_RELEASE_SCRIPT = REPO_ROOT / "TianXianQuant" / "scripts" / "build_release_artifacts.sh"
+README_DOC = REPO_ROOT / "README.md"
+RELEASE_ENV_EXAMPLE = REPO_ROOT / "release.env.example"
 RELEASE_SIGNING_DOC = REPO_ROOT / "docs" / "RELEASE_SIGNING.md"
 GRADLE_BUILD_FILE = REPO_ROOT / "TianXianQuant" / "app" / "build.gradle.kts"
+
+RELEASE_SIGNING_ARGV_GUARD_FILES = (
+    VERIFY_SCRIPT,
+    BUILD_RELEASE_SCRIPT,
+    RELEASE_SIGNING_DOC,
+    README_DOC,
+    RELEASE_ENV_EXAMPLE,
+    GRADLE_BUILD_FILE,
+)
+
+RELEASE_SIGNING_DOC_FILES = (
+    RELEASE_SIGNING_DOC,
+    README_DOC,
+    RELEASE_ENV_EXAMPLE,
+)
+
+DOC_SIGNING_SECRET_ASSIGNMENT_RE = re.compile(
+    r"\b(?P<name>TIANXIAN_RELEASE_(?:KEYSTORE|STORE_PASSWORD|KEY_PASSWORD))"
+    r"\s*=\s*(?P<quote>['\"]?)(?P<value>[^'\"\\\s]+)(?P=quote)"
+)
+DOC_SIGNING_SYNTHETIC_VALUES = {
+    "TIANXIAN_RELEASE_KEYSTORE": {
+        "/secure/path/release.keystore",
+        "/secure/path/tianxian-upload.jks",
+    },
+    "TIANXIAN_RELEASE_STORE_PASSWORD": {
+        "***",
+        "<store-password>",
+        "replace-with-store-password",
+    },
+    "TIANXIAN_RELEASE_KEY_PASSWORD": {
+        "***",
+        "<key-password>",
+        "replace-with-key-password",
+    },
+}
 
 PLACEHOLDER_API_URL = "https://example.com/api-precheck-fixture-marker"
 PLACEHOLDER_SUPPORT_EMAIL = "support-precheck-fixture-marker@example.com"
@@ -252,12 +291,39 @@ def test_build_release_wrapper_does_not_template_keystore_path_into_error_text()
 
 
 def test_release_signing_values_are_not_gradle_argv_examples() -> None:
-    for path in (VERIFY_SCRIPT, BUILD_RELEASE_SCRIPT, RELEASE_SIGNING_DOC, GRADLE_BUILD_FILE):
+    for path in RELEASE_SIGNING_ARGV_GUARD_FILES:
         text = path.read_text(encoding="utf-8")
         assert "-PtianxianRelease" not in text, (
             f"{path.relative_to(REPO_ROOT)} must not document or pass release "
             "signing values as Gradle -P argv properties."
         )
+
+
+def test_release_docs_keep_signing_secret_examples_synthetic() -> None:
+    expected = {
+        (path, name)
+        for path in RELEASE_SIGNING_DOC_FILES
+        for name in DOC_SIGNING_SYNTHETIC_VALUES
+    }
+    seen: set[tuple[Path, str]] = set()
+
+    for path in RELEASE_SIGNING_DOC_FILES:
+        text = path.read_text(encoding="utf-8")
+        for match in DOC_SIGNING_SECRET_ASSIGNMENT_RE.finditer(text):
+            name = match.group("name")
+            value = match.group("value")
+            seen.add((path, name))
+            assert value in DOC_SIGNING_SYNTHETIC_VALUES[name], (
+                f"{path.relative_to(REPO_ROOT)} must keep {name} examples "
+                "synthetic; use one of the documented placeholder values "
+                "instead of a real-looking signing value."
+            )
+
+    missing = expected - seen
+    assert not missing, (
+        "release signing docs must keep explicit synthetic examples for "
+        f"{sorted((path.relative_to(REPO_ROOT).as_posix(), name) for path, name in missing)}"
+    )
 
 
 def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(
