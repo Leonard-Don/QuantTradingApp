@@ -39,6 +39,14 @@ USERINFO_API_URL = (
     f"https://realops:{USERINFO_LEAK_PASSWORD}@api.tianxianquant-prod.invalid/v1/"
 )
 
+# A keystore path that cannot exist on the runner. The unique marker lets a
+# regression that interpolates the value into the error message be detected
+# unambiguously, the same way the URL/email fixtures above work.
+KEYSTORE_LEAK_MARKER = "keystore-precheck-fixture-marker"
+NONEXISTENT_KEYSTORE = (
+    f"/tmp/tianxianquant-{KEYSTORE_LEAK_MARKER}-DO-NOT-CREATE.jks"
+)
+
 # Vars the precheck reads. Cleared from the env before each run so a stray
 # value in the developer's shell can't mask a regression.
 PRECHECK_INPUT_VARS = (
@@ -138,4 +146,37 @@ def test_precheck_rejects_url_with_embedded_userinfo() -> None:
     )
     assert USERINFO_API_URL not in combined, (
         "precheck leaked the full URL (including credentials) into output."
+    )
+
+
+def test_precheck_redacts_keystore_path_on_missing_file() -> None:
+    # Symmetric with the URL/email redaction guard: when the keystore path is
+    # bad, the error must name the variable but never echo the path itself.
+    # Local keystore paths embed developer or CI-runner directory layouts,
+    # and verify_paid_release_config.sh streams stderr straight into job
+    # logs - a "helpful" refactor that interpolated $TIANXIAN_RELEASE_KEYSTORE
+    # into the error would leak that layout. Lock the redaction in.
+    from pathlib import Path as _Path
+
+    assert not _Path(NONEXISTENT_KEYSTORE).exists(), (
+        "fixture path unexpectedly exists; pick a different marker so the "
+        "test exercises the missing-file branch"
+    )
+    result = _run_precheck({"TIANXIAN_RELEASE_KEYSTORE": NONEXISTENT_KEYSTORE})
+    assert result.returncode != 0, (
+        "precheck accepted a TIANXIAN_RELEASE_KEYSTORE pointing at a "
+        f"nonexistent file. stdout={result.stdout!r}"
+    )
+    assert "TIANXIAN_RELEASE_KEYSTORE" in result.stderr, (
+        "operator-facing error must name the failing keystore variable; "
+        f"stderr={result.stderr!r}"
+    )
+    combined = result.stdout + result.stderr
+    assert KEYSTORE_LEAK_MARKER not in combined, (
+        "precheck leaked the keystore path marker into output - keystore "
+        "paths must be redacted from precheck stderr the same way URL and "
+        "email values are."
+    )
+    assert NONEXISTENT_KEYSTORE not in combined, (
+        "precheck leaked the full keystore path into output."
     )
