@@ -28,6 +28,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PRECHECK_SCRIPT = REPO_ROOT / "scripts" / "check_paid_release_inputs.sh"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_paid_release_config.sh"
 BUILD_RELEASE_SCRIPT = REPO_ROOT / "TianXianQuant" / "scripts" / "build_release_artifacts.sh"
+RELEASE_SIGNING_DOC = REPO_ROOT / "docs" / "RELEASE_SIGNING.md"
+GRADLE_BUILD_FILE = REPO_ROOT / "TianXianQuant" / "app" / "build.gradle.kts"
 
 PLACEHOLDER_API_URL = "https://example.com/api-precheck-fixture-marker"
 PLACEHOLDER_SUPPORT_EMAIL = "support-precheck-fixture-marker@example.com"
@@ -247,6 +249,15 @@ def test_build_release_wrapper_does_not_template_keystore_path_into_error_text()
         "release artifact wrapper must not interpolate the local keystore path "
         "into missing-file errors."
     )
+
+
+def test_release_signing_values_are_not_gradle_argv_examples() -> None:
+    for path in (VERIFY_SCRIPT, BUILD_RELEASE_SCRIPT, RELEASE_SIGNING_DOC, GRADLE_BUILD_FILE):
+        text = path.read_text(encoding="utf-8")
+        assert "-PtianxianRelease" not in text, (
+            f"{path.relative_to(REPO_ROOT)} must not document or pass release "
+            "signing values as Gradle -P argv properties."
+        )
 
 
 def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(

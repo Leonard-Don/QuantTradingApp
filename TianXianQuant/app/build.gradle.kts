@@ -163,10 +163,10 @@ tasks.register("verifyPaidReleaseConfig") {
             missing += "release signing properties outside git"
         }
         if (tianxianReleaseKeystore.isNotBlank() && !file(tianxianReleaseKeystore).exists()) {
-            missing += "-PtianxianReleaseKeystore must point to an existing keystore file"
+            missing += "release signing keystore must point to an existing keystore file"
         }
         if (tianxianReleaseKeystore.isNotBlank() && !hasTianxianReleaseSigning) {
-            missing += "-PtianxianReleaseStorePassword, -PtianxianReleaseKeyAlias, and -PtianxianReleaseKeyPassword"
+            missing += "release signing store password, key alias, and key password must be provided via wrapper environment variables"
         }
 
         if (missing.isNotEmpty()) {
