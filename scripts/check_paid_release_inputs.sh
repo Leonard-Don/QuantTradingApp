@@ -24,6 +24,18 @@ contains_placeholder_host() {
   return 1
 }
 
+# Does the URL carry a ``user[:password]@`` userinfo component in its
+# authority section? verify_paid_release_config.sh passes the URL to Gradle
+# on the command line, which is echoed into CI logs and baked into
+# BuildConfig - any embedded credentials would leak.
+url_has_userinfo() {
+  local rest="${1#https://}"
+  local authority="${rest%%/*}"
+  authority="${authority%%\?*}"
+  authority="${authority%%#*}"
+  [[ "$authority" == *"@"* ]]
+}
+
 check_https_url() {
   local name="$1" value="${2:-}"
   if [[ -z "$value" ]]; then
@@ -35,6 +47,9 @@ check_https_url() {
   fi
   if contains_placeholder_host "$value"; then
     errors+=("$name uses a placeholder/local host")
+  fi
+  if url_has_userinfo "$value"; then
+    errors+=("$name must not include embedded userinfo credentials")
   fi
 }
 

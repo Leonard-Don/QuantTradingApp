@@ -28,6 +28,17 @@ PRECHECK_SCRIPT = REPO_ROOT / "scripts" / "check_paid_release_inputs.sh"
 PLACEHOLDER_API_URL = "https://example.com/api-precheck-fixture-marker"
 PLACEHOLDER_SUPPORT_EMAIL = "support-precheck-fixture-marker@example.com"
 
+# A URL whose host part is a plausible production domain (no placeholder
+# substring) but which carries inline ``user:password@`` credentials in the
+# authority component. The host is intentionally invented so it cannot match
+# the placeholder-host blocklist; the only reason for the precheck to fail
+# this fixture is the embedded userinfo. The password marker is unique to
+# this test so a leak in stdout/stderr would be unmistakable.
+USERINFO_LEAK_PASSWORD = "userinfo-precheck-fixture-marker"
+USERINFO_API_URL = (
+    f"https://realops:{USERINFO_LEAK_PASSWORD}@api.tianxianquant-prod.invalid/v1/"
+)
+
 # Vars the precheck reads. Cleared from the env before each run so a stray
 # value in the developer's shell can't mask a regression.
 PRECHECK_INPUT_VARS = (
@@ -96,4 +107,35 @@ def test_precheck_does_not_echo_literal_env_values() -> None:
     assert PLACEHOLDER_SUPPORT_EMAIL not in combined, (
         "precheck leaked the email value into output - error messages must "
         "name only the variable, never its contents."
+    )
+
+
+def test_precheck_rejects_url_with_embedded_userinfo() -> None:
+    # An https:// URL with ``user:password@`` in the authority is syntactically
+    # valid and would pass the existing scheme + placeholder-host checks, but
+    # ``verify_paid_release_config.sh`` then forwards the value to Gradle on
+    # the command line. That command line is echoed verbatim into CI logs and
+    # the credentials would also end up baked into BuildConfig at compile
+    # time. Reject the URL before Gradle sees it.
+    result = _run_precheck(
+        {"TIANXIAN_PRODUCTION_API_BASE_URL": USERINFO_API_URL}
+    )
+    assert result.returncode != 0, (
+        "precheck accepted an https:// URL with embedded userinfo - "
+        "credentials in the authority would be forwarded to Gradle and "
+        "leak into CI logs/BuildConfig. "
+        f"stdout={result.stdout!r}"
+    )
+    assert "TIANXIAN_PRODUCTION_API_BASE_URL" in result.stderr, (
+        "operator-facing error must name the failing variable so the right "
+        f"URL is fixed; stderr={result.stderr!r}"
+    )
+    combined = result.stdout + result.stderr
+    assert USERINFO_LEAK_PASSWORD not in combined, (
+        "precheck leaked the embedded password into output - the rejection "
+        "message must not echo the credential portion of the URL or it "
+        "defeats the purpose of catching the leak."
+    )
+    assert USERINFO_API_URL not in combined, (
+        "precheck leaked the full URL (including credentials) into output."
     )
