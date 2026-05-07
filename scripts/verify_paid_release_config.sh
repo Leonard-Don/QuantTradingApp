@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+"$ROOT_DIR/scripts/check_paid_release_inputs.sh"
+
 cd "$ROOT_DIR/TianXianQuant"
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
