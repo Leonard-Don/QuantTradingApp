@@ -19,11 +19,15 @@ secrets.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import textwrap
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PRECHECK_SCRIPT = REPO_ROOT / "scripts" / "check_paid_release_inputs.sh"
+VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_paid_release_config.sh"
+BUILD_RELEASE_SCRIPT = REPO_ROOT / "TianXianQuant" / "scripts" / "build_release_artifacts.sh"
 
 PLACEHOLDER_API_URL = "https://example.com/api-precheck-fixture-marker"
 PLACEHOLDER_SUPPORT_EMAIL = "support-precheck-fixture-marker@example.com"
@@ -47,6 +51,12 @@ NONEXISTENT_KEYSTORE = (
     f"/tmp/tianxianquant-{KEYSTORE_LEAK_MARKER}-DO-NOT-CREATE.jks"
 )
 
+WRAPPER_KEYSTORE_MARKER = "keystore-wrapper-[fixture]-marker"
+WRAPPER_STORE_PASSWORD_MARKER = "store-password-wrapper-[fixture]-marker?"
+WRAPPER_KEY_ALIAS_MARKER = "key-alias-wrapper-[fixture]"
+WRAPPER_KEY_PASSWORD_TAIL_MARKER = "password-tail-*suffix?"
+WRAPPER_KEY_PASSWORD_MARKER = f"{WRAPPER_KEY_ALIAS_MARKER}-{WRAPPER_KEY_PASSWORD_TAIL_MARKER}"
+
 # Vars the precheck reads. Cleared from the env before each run so a stray
 # value in the developer's shell can't mask a regression.
 PRECHECK_INPUT_VARS = (
@@ -56,6 +66,16 @@ PRECHECK_INPUT_VARS = (
     "TIANXIAN_DATA_DISCLAIMER_URL",
     "TIANXIAN_SUPPORT_EMAIL",
     "TIANXIAN_RELEASE_KEYSTORE",
+)
+
+VERIFY_WRAPPER_INPUT_VARS = PRECHECK_INPUT_VARS + (
+    "TIANXIAN_RELEASE_STORE_PASSWORD",
+    "TIANXIAN_RELEASE_KEY_ALIAS",
+    "TIANXIAN_RELEASE_KEY_PASSWORD",
+    "ORG_GRADLE_PROJECT_tianxianReleaseKeystore",
+    "ORG_GRADLE_PROJECT_tianxianReleaseStorePassword",
+    "ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias",
+    "ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword",
 )
 
 
@@ -71,6 +91,37 @@ def _run_precheck(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[
         text=True,
         check=False,
     )
+
+
+def _copy_release_gate_scripts(target_root: Path) -> Path:
+    scripts_dir = target_root / "scripts"
+    scripts_dir.mkdir(parents=True)
+    copied_precheck = scripts_dir / "check_paid_release_inputs.sh"
+    copied_verify = scripts_dir / "verify_paid_release_config.sh"
+    shutil.copy2(PRECHECK_SCRIPT, copied_precheck)
+    shutil.copy2(VERIFY_SCRIPT, copied_verify)
+    copied_precheck.chmod(0o755)
+    copied_verify.chmod(0o755)
+    return copied_verify
+
+
+def _copy_build_release_script(target_root: Path) -> Path:
+    scripts_dir = target_root / "TianXianQuant" / "scripts"
+    scripts_dir.mkdir(parents=True)
+    copied_build = scripts_dir / "build_release_artifacts.sh"
+    shutil.copy2(BUILD_RELEASE_SCRIPT, copied_build)
+    copied_build.chmod(0o755)
+    return copied_build
+
+
+def _valid_release_gate_env() -> dict[str, str]:
+    return {
+        "TIANXIAN_PRODUCTION_API_BASE_URL": "https://api.tianxianquant-prod.invalid/v1/",
+        "TIANXIAN_PRIVACY_POLICY_URL": "https://legal.tianxianquant-prod.invalid/privacy",
+        "TIANXIAN_TERMS_URL": "https://legal.tianxianquant-prod.invalid/terms",
+        "TIANXIAN_DATA_DISCLAIMER_URL": "https://legal.tianxianquant-prod.invalid/data",
+        "TIANXIAN_SUPPORT_EMAIL": "support@tianxianquant-prod.invalid",
+    }
 
 
 def test_precheck_script_exists_and_is_executable() -> None:
@@ -180,3 +231,234 @@ def test_precheck_redacts_keystore_path_on_missing_file() -> None:
     assert NONEXISTENT_KEYSTORE not in combined, (
         "precheck leaked the full keystore path into output."
     )
+
+
+def test_verify_wrapper_does_not_template_keystore_path_into_error_text() -> None:
+    text = VERIFY_SCRIPT.read_text(encoding="utf-8")
+    assert "missing file: $TIANXIAN_RELEASE_KEYSTORE" not in text, (
+        "verify wrapper must not interpolate the local keystore path into "
+        "missing-file errors."
+    )
+
+
+def test_build_release_wrapper_does_not_template_keystore_path_into_error_text() -> None:
+    text = BUILD_RELEASE_SCRIPT.read_text(encoding="utf-8")
+    assert "missing file: $TIANXIAN_RELEASE_KEYSTORE" not in text, (
+        "release artifact wrapper must not interpolate the local keystore path "
+        "into missing-file errors."
+    )
+
+
+def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(
+    tmp_path: Path,
+) -> None:
+    verify_script = _copy_release_gate_scripts(tmp_path)
+    app_dir = tmp_path / "TianXianQuant"
+    app_dir.mkdir()
+
+    args_file = tmp_path / "gradle-args.txt"
+    env_file = tmp_path / "gradle-env.txt"
+    gradlew = app_dir / "gradlew"
+    gradlew.write_text(
+        textwrap.dedent(
+            """\
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            : > "$VERIFY_WRAPPER_ARGS_FILE"
+            for arg in "$@"; do
+              printf 'argv=%s\\n' "$arg" >&2
+              printf '%s\\n' "$arg" >> "$VERIFY_WRAPPER_ARGS_FILE"
+            done
+
+            {
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeystore:-}" == "${TIANXIAN_RELEASE_KEYSTORE:-}" ]]; then
+                echo "keystore=ok"
+              else
+                echo "keystore=bad"
+              fi
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseStorePassword:-}" == "${TIANXIAN_RELEASE_STORE_PASSWORD:-}" ]]; then
+                echo "store_password=ok"
+              else
+                echo "store_password=bad"
+              fi
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias:-}" == "${TIANXIAN_RELEASE_KEY_ALIAS:-}" ]]; then
+                echo "key_alias=ok"
+              else
+                echo "key_alias=bad"
+              fi
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword:-}" == "${TIANXIAN_RELEASE_KEY_PASSWORD:-}" ]]; then
+                echo "key_password=ok"
+              else
+                echo "key_password=bad"
+              fi
+            } > "$VERIFY_WRAPPER_ENV_FILE"
+
+            echo "stub gradle failure after argv capture: $TIANXIAN_RELEASE_KEYSTORE" >&2
+            echo "stdout leak probe: $TIANXIAN_RELEASE_STORE_PASSWORD $TIANXIAN_RELEASE_KEY_ALIAS $TIANXIAN_RELEASE_KEY_PASSWORD"
+            exit 42
+            """
+        ),
+        encoding="utf-8",
+    )
+    gradlew.chmod(0o755)
+
+    keystore = tmp_path / f"{WRAPPER_KEYSTORE_MARKER}.jks"
+    keystore.write_text("synthetic keystore fixture", encoding="utf-8")
+
+    env = os.environ.copy()
+    for key in VERIFY_WRAPPER_INPUT_VARS:
+        env.pop(key, None)
+    env.update(
+        _valid_release_gate_env()
+        | {
+            "TIANXIAN_RELEASE_KEYSTORE": str(keystore),
+            "TIANXIAN_RELEASE_STORE_PASSWORD": WRAPPER_STORE_PASSWORD_MARKER,
+            "TIANXIAN_RELEASE_KEY_ALIAS": WRAPPER_KEY_ALIAS_MARKER,
+            "TIANXIAN_RELEASE_KEY_PASSWORD": WRAPPER_KEY_PASSWORD_MARKER,
+            "VERIFY_WRAPPER_ARGS_FILE": str(args_file),
+            "VERIFY_WRAPPER_ENV_FILE": str(env_file),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", str(verify_script)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 42, (
+        "fixture gradlew should have been reached after precheck; "
+        f"stdout={result.stdout!r}; stderr={result.stderr!r}"
+    )
+    assert env_file.read_text(encoding="utf-8").splitlines() == [
+        "keystore=ok",
+        "store_password=ok",
+        "key_alias=ok",
+        "key_password=ok",
+    ]
+
+    gradle_argv = args_file.read_text(encoding="utf-8")
+    combined = result.stdout + result.stderr + gradle_argv
+    for marker in (
+        WRAPPER_KEYSTORE_MARKER,
+        WRAPPER_STORE_PASSWORD_MARKER,
+        WRAPPER_KEY_ALIAS_MARKER,
+        WRAPPER_KEY_PASSWORD_MARKER,
+        WRAPPER_KEY_PASSWORD_TAIL_MARKER,
+    ):
+        assert marker not in combined, (
+            "verify wrapper leaked a signing fixture marker into Gradle argv "
+            "or failure output."
+        )
+    assert "tianxianReleaseStorePassword" not in gradle_argv
+    assert "tianxianReleaseKeyPassword" not in gradle_argv
+
+
+def test_build_release_wrapper_keeps_release_signing_values_out_of_gradle_argv(
+    tmp_path: Path,
+) -> None:
+    build_script = _copy_build_release_script(tmp_path)
+    app_dir = tmp_path / "TianXianQuant"
+
+    args_file = tmp_path / "gradle-args.txt"
+    env_file = tmp_path / "gradle-env.txt"
+    gradlew = app_dir / "gradlew"
+    gradlew.write_text(
+        textwrap.dedent(
+            """\
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            : > "$BUILD_WRAPPER_ARGS_FILE"
+            for arg in "$@"; do
+              printf 'argv=%s\\n' "$arg" >&2
+              printf '%s\\n' "$arg" >> "$BUILD_WRAPPER_ARGS_FILE"
+            done
+
+            {
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeystore:-}" == "${TIANXIAN_RELEASE_KEYSTORE:-}" ]]; then
+                echo "keystore=ok"
+              else
+                echo "keystore=bad"
+              fi
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseStorePassword:-}" == "${TIANXIAN_RELEASE_STORE_PASSWORD:-}" ]]; then
+                echo "store_password=ok"
+              else
+                echo "store_password=bad"
+              fi
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias:-}" == "${TIANXIAN_RELEASE_KEY_ALIAS:-}" ]]; then
+                echo "key_alias=ok"
+              else
+                echo "key_alias=bad"
+              fi
+              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword:-}" == "${TIANXIAN_RELEASE_KEY_PASSWORD:-}" ]]; then
+                echo "key_password=ok"
+              else
+                echo "key_password=bad"
+              fi
+            } > "$BUILD_WRAPPER_ENV_FILE"
+
+            echo "stub release gradle failure after argv capture: $TIANXIAN_RELEASE_KEYSTORE" >&2
+            echo "stdout leak probe: $TIANXIAN_RELEASE_STORE_PASSWORD $TIANXIAN_RELEASE_KEY_ALIAS $TIANXIAN_RELEASE_KEY_PASSWORD"
+            exit 42
+            """
+        ),
+        encoding="utf-8",
+    )
+    gradlew.chmod(0o755)
+
+    keystore = tmp_path / f"{WRAPPER_KEYSTORE_MARKER}.jks"
+    keystore.write_text("synthetic keystore fixture", encoding="utf-8")
+
+    env = os.environ.copy()
+    for key in VERIFY_WRAPPER_INPUT_VARS:
+        env.pop(key, None)
+    env.update(
+        {
+            "JAVA_HOME": str(tmp_path / "synthetic-jdk17"),
+            "TIANXIAN_RELEASE_KEYSTORE": str(keystore),
+            "TIANXIAN_RELEASE_STORE_PASSWORD": WRAPPER_STORE_PASSWORD_MARKER,
+            "TIANXIAN_RELEASE_KEY_ALIAS": WRAPPER_KEY_ALIAS_MARKER,
+            "TIANXIAN_RELEASE_KEY_PASSWORD": WRAPPER_KEY_PASSWORD_MARKER,
+            "BUILD_WRAPPER_ARGS_FILE": str(args_file),
+            "BUILD_WRAPPER_ENV_FILE": str(env_file),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", str(build_script)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 42, (
+        "fixture gradlew should have been reached by the release artifact wrapper; "
+        f"stdout={result.stdout!r}; stderr={result.stderr!r}"
+    )
+    assert env_file.read_text(encoding="utf-8").splitlines() == [
+        "keystore=ok",
+        "store_password=ok",
+        "key_alias=ok",
+        "key_password=ok",
+    ]
+
+    gradle_argv = args_file.read_text(encoding="utf-8")
+    combined = result.stdout + result.stderr + gradle_argv
+    for marker in (
+        WRAPPER_KEYSTORE_MARKER,
+        WRAPPER_STORE_PASSWORD_MARKER,
+        WRAPPER_KEY_ALIAS_MARKER,
+        WRAPPER_KEY_PASSWORD_MARKER,
+        WRAPPER_KEY_PASSWORD_TAIL_MARKER,
+    ):
+        assert marker not in combined, (
+            "release artifact wrapper leaked a signing fixture marker into "
+            "Gradle argv or failure output."
+        )
+    assert "tianxianReleaseStorePassword" not in gradle_argv
+    assert "tianxianReleaseKeyPassword" not in gradle_argv
