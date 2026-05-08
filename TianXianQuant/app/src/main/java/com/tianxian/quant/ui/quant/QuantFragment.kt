@@ -83,7 +83,7 @@ class QuantFragment : Fragment() {
         viewModel.strategies.observe(viewLifecycleOwner) { strategies ->
             adapter.submitList(strategies) {
                 if (scrollToCreatedStrategy && strategies.isNotEmpty()) {
-                    binding.recyclerView.smoothScrollToPosition(0)
+                    scrollToStrategyListTop()
                     scrollToCreatedStrategy = false
                 }
             }
@@ -392,13 +392,17 @@ class QuantFragment : Fragment() {
                     description = desc.ifEmpty { "自定义量化研究模型" },
                     formula = formula
                 )
-                binding.recyclerView.post {
-                    binding.recyclerView.smoothScrollToPosition(0)
-                }
+                scrollToStrategyListTop()
                 Toast.makeText(requireContext(), "策略创建成功：${strategy.name}", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    private fun scrollToStrategyListTop() {
+        binding.scrollView.post {
+            binding.scrollView.smoothScrollTo(0, binding.recyclerView.top)
+        }
     }
 
     private fun openQuantSubscription() {
