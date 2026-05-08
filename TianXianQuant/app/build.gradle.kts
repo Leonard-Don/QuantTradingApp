@@ -53,7 +53,8 @@ android {
         buildConfigField("String", "TENCENT_QUOTE_BASE_URL", "\"https://qt.gtimg.cn/q=\"")
         buildConfigField("String", "TENCENT_KLINE_URL", "\"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=\"")
         buildConfigField("String", "SINA_QUOTE_BASE_URL", "\"https://hq.sinajs.cn/list=\"")
-            buildConfigField("String", "EASTMONEY_KLINE_URL", "\"https://push2his.eastmoney.com/api/qt/stock/kline/get\"")
+        buildConfigField("String", "EASTMONEY_KLINE_URL", "\"https://push2his.eastmoney.com/api/qt/stock/kline/get\"")
+        buildConfigField("boolean", "DEMO_VIP_ENABLED", "false")
     }
     signingConfigs {
         if (hasTianxianReleaseSigning) {
@@ -68,6 +69,14 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "ALLOW_LOCAL_PAYMENT_SIMULATION", "true")
+        }
+        create("demo") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+            matchingFallbacks += listOf("debug")
+            buildConfigField("boolean", "ALLOW_LOCAL_PAYMENT_SIMULATION", "true")
+            buildConfigField("boolean", "DEMO_VIP_ENABLED", "true")
         }
         release {
             buildConfigField("boolean", "ALLOW_LOCAL_PAYMENT_SIMULATION", "false")

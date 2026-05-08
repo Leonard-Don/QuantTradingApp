@@ -38,6 +38,9 @@ object LocalStateRepository {
 
     suspend fun getUserState(): UserStateEntity {
         val existing = db.userStateDao().get()
+        if (BuildConfig.DEMO_VIP_ENABLED) {
+            return ensureDemoVipState(existing)
+        }
         if (existing != null) return existing
         val created = UserStateEntity()
         db.userStateDao().save(created)
@@ -65,6 +68,53 @@ object LocalStateRepository {
 
     suspend fun isLoggedIn(): Boolean {
         return getUserState().isLoggedIn
+    }
+
+    private suspend fun ensureDemoVipState(existing: UserStateEntity?): UserStateEntity {
+        if (existing != null && existing.isLoggedIn && hasAnyVip(existing) && existing.isDemoVipUser()) {
+            seedDemoSubscriptionOrder(existing)
+            return existing
+        }
+
+        val now = System.currentTimeMillis()
+        val expiresAt = now + DEMO_VIP_DURATION_MILLIS
+        val updated = (existing ?: UserStateEntity()).copy(
+            displayName = "演示VIP用户",
+            phone = "13800000000",
+            passwordHash = null,
+            isLoggedIn = true,
+            isVip = true,
+            vipExpireTime = expiresAt,
+            stockVipExpireTime = expiresAt,
+            quantVipExpireTime = expiresAt,
+            backendAccessToken = null,
+            backendRefreshToken = null,
+            backendTokenExpiresAt = 0L,
+            backendGraceUntil = 0L,
+            backendSyncStatus = DEMO_VIP_STATUS,
+            createdAt = existing?.createdAt?.takeIf { it > 0L } ?: now,
+            lastLoginAt = now
+        )
+        db.userStateDao().save(updated)
+        seedDemoSubscriptionOrder(updated)
+        return updated
+    }
+
+    private suspend fun seedDemoSubscriptionOrder(state: UserStateEntity) {
+        if (db.subscriptionOrderDao().getRecent(1).isNotEmpty()) return
+        val now = System.currentTimeMillis()
+        db.subscriptionOrderDao().save(
+            localPaidOrderEntity(
+                tier = VipTier.FULL,
+                days = DEMO_VIP_DURATION_DAYS,
+                channel = PaymentChannel.WECHAT,
+                state = state,
+                paidAt = now
+            ).copy(
+                source = "local_demo",
+                note = "本地演示支付完成：全功能 VIP 已生效"
+            )
+        )
     }
 
     suspend fun register(displayName: String, phone: String, password: String): UserStateEntity {
@@ -779,10 +829,17 @@ object LocalStateRepository {
         return expireTime > System.currentTimeMillis()
     }
 
+    private fun UserStateEntity.isDemoVipUser(): Boolean {
+        return displayName == "演示VIP用户" && backendSyncStatus == DEMO_VIP_STATUS
+    }
+
     private fun isWithinBackendGrace(state: UserStateEntity, tierExpireTime: Long): Boolean {
         return tierExpireTime > 0L && isActive(state.backendGraceUntil)
     }
 
+    private const val DEMO_VIP_DURATION_DAYS = 366
+    private const val DEMO_VIP_DURATION_MILLIS = DEMO_VIP_DURATION_DAYS * 24L * 60L * 60L * 1000L
+    private const val DEMO_VIP_STATUS = "本机演示账号：全功能 VIP 已开通"
     private const val QUOTE_CACHE_MAX_AGE_MILLIS = 7L * 24L * 60L * 60L * 1000L
     private const val TOKEN_REFRESH_SKEW_MILLIS = 60L * 1000L
 }
