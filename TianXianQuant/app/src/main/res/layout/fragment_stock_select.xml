@@ -80,6 +80,67 @@
             android:textSize="12sp"
             android:visibility="gone" />
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/stockBoardSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="@dimen/card_corner_radius"
+            app:cardElevation="@dimen/card_elevation">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/tvBoardHeadline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/text_sm"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvBoardBreadth"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_xs" />
+
+                <TextView
+                    android:id="@+id/tvBoardGainers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/stock_up"
+                    android:textSize="@dimen/text_xs" />
+
+                <TextView
+                    android:id="@+id/tvBoardLosers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/stock_down"
+                    android:textSize="@dimen/text_xs" />
+
+                <TextView
+                    android:id="@+id/tvBoardSectors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_xs" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefresh"
             android:layout_width="match_parent"

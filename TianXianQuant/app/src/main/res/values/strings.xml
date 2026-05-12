@@ -40,6 +40,20 @@
     <string name="stock_research_title">%1$s VIP深度诊断</string>
     <string name="stock_research_locked_title">开通选股 VIP</string>
     <string name="stock_research_locked_message">%1$s 的深度诊断为选股 VIP 功能：订阅后可查看趋势结构、估值状态、流动性、风险雷达和后续研究动作。\n\n说明：诊断只做行情字段研究和风险识别，不给出具体买卖指令。</string>
+    <string name="stock_board_headline">行情池概览：%1$d 只 · 成交额 %2$s亿</string>
+    <string name="stock_board_breadth">上涨 %1$d · 下跌 %2$d · 平盘 %3$d</string>
+    <string name="stock_board_gainers">涨幅榜：%1$s</string>
+    <string name="stock_board_losers">跌幅榜：%1$s</string>
+    <string name="stock_board_sectors">热门板块：%1$s</string>
+    <string name="stock_board_empty">暂无可用样本</string>
+    <string name="stock_detail_strength">指标强度：%1$d/100（%2$s）</string>
+    <string name="stock_detail_code_industry">%1$s · %2$s</string>
+    <string name="stock_detail_quote">行情数据：%1$s</string>
+    <string name="stock_detail_valuation">估值数据：%1$s</string>
+    <string name="stock_detail_liquidity">流动性：%1$s</string>
+    <string name="stock_detail_risk_title">风险雷达</string>
+    <string name="stock_detail_action_title">后续研究动作</string>
+    <string name="stock_detail_notice">说明：以上基于公开行情字段和本机股票池计算，只做研究记录，不构成投资建议或交易指令。</string>
 
     <!-- Review -->
     <string name="market_summary">市场概况</string>

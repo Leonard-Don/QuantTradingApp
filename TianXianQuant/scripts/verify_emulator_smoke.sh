@@ -209,12 +209,38 @@ sys.exit(1)
 PY
 }
 
+has_text_contains() {
+  local xml_file="$1"
+  local value="$2"
+  python3 - "$xml_file" "$value" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+xml_file, value = sys.argv[1:3]
+root = ET.parse(xml_file).getroot()
+for node in root.iter():
+    if value in node.attrib.get("text", ""):
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
 assert_node() {
   local xml_file="$1"
   local attr_name="$2"
   local value="$3"
   if ! has_node "$xml_file" "$attr_name" "$value"; then
     echo "Expected UI node not found: $attr_name=$value" >&2
+    sed -n '1,80p' "$xml_file" >&2
+    exit 1
+  fi
+}
+
+assert_text_contains() {
+  local xml_file="$1"
+  local value="$2"
+  if ! has_text_contains "$xml_file" "$value"; then
+    echo "Expected UI text containing not found: $value" >&2
     sed -n '1,80p' "$xml_file" >&2
     exit 1
   fi
@@ -469,12 +495,18 @@ for _ in 1 2 3 4 5; do
   dump_ui "$STOCK_XML"
 done
 assert_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"
+assert_text_contains "$STOCK_XML" "行情池概览"
+assert_text_contains "$STOCK_XML" "涨幅榜"
+assert_text_contains "$STOCK_XML" "热门板块"
 capture_screenshot "01_stock_home"
 tap_node "$STOCK_XML" "resource-id" "com.tianxian.quant:id/tvStockName"
 sleep 1
 STOCK_DETAIL_XML="$WORK_DIR/stock-detail.xml"
 dump_ui "$STOCK_DETAIL_XML"
 assert_node "$STOCK_DETAIL_XML" "text" "深度诊断(VIP)"
+assert_text_contains "$STOCK_DETAIL_XML" "指标强度"
+assert_node "$STOCK_DETAIL_XML" "text" "风险雷达"
+assert_node "$STOCK_DETAIL_XML" "text" "后续研究动作"
 tap_node "$STOCK_DETAIL_XML" "text" "关闭"
 sleep 1
 

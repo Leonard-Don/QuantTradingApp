@@ -5,6 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tianxian.quant.data.LocalStateRepository
+import com.tianxian.quant.model.StockBoardPolicy
+import com.tianxian.quant.model.StockBoardSnapshot
 import com.tianxian.quant.model.StockFilterCriteria
 import com.tianxian.quant.model.StockFilterPolicy
 import com.tianxian.quant.model.StockInfo
@@ -36,6 +38,9 @@ class StockSelectViewModel : ViewModel() {
 
     private val _isVipActive = MutableLiveData(false)
     val isVipActive: LiveData<Boolean> = _isVipActive
+
+    private val _boardSnapshot = MutableLiveData<StockBoardSnapshot?>()
+    val boardSnapshot: LiveData<StockBoardSnapshot?> = _boardSnapshot
 
     private var allStocks: List<StockInfo> = emptyList()
     private var keyword: String = ""
@@ -261,6 +266,7 @@ class StockSelectViewModel : ViewModel() {
     }
 
     private fun applyCurrentFilter() {
+        _boardSnapshot.value = StockBoardPolicy.summarize(allStocks)
         val result = StockFilterPolicy.filter(
             stocks = allStocks,
             keyword = keyword,

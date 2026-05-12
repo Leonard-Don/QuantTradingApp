@@ -16,8 +16,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.chip.Chip
 import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
+import com.tianxian.quant.databinding.DialogStockDetailBinding
 import com.tianxian.quant.databinding.FragmentStockSelectBinding
+import com.tianxian.quant.model.StockBoardPolicy
+import com.tianxian.quant.model.StockBoardSnapshot
 import com.tianxian.quant.model.StockFilterCriteria
+import com.tianxian.quant.model.StockSectorPulse
 import com.tianxian.quant.model.StockInfo
 import com.tianxian.quant.model.StockResearchPolicy
 import com.tianxian.quant.model.StockResearchReport
@@ -159,6 +163,9 @@ class StockSelectFragment : Fragment() {
         viewModel.watchlistCodes.observe(viewLifecycleOwner) { codes ->
             adapter.setWatchlistCodes(codes)
         }
+        viewModel.boardSnapshot.observe(viewLifecycleOwner) { snapshot ->
+            renderBoardSnapshot(snapshot)
+        }
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
@@ -219,34 +226,73 @@ class StockSelectFragment : Fragment() {
     }
 
     private fun showStockDetail(stock: StockInfo) {
-        val message = buildString {
-            append("代码：${stock.code}\n")
-            append("行业标签：${stock.industry}\n\n")
-            append("现价：${formatPrice(stock.price)}\n")
-            append("涨跌幅：${formatSignedPercent(stock.changePercent)}\n")
-            append("成交量：${formatVolume(stock.volume)}\n")
-            append("成交额：${formatAmount(stock.turnover)}\n")
-            append("市值：${formatAmount(stock.marketCap)}\n")
-            append("PE：${stock.pe.takeIf { it > 0 }?.let { formatPrice(it) } ?: "暂无"}\n")
-            append("PB：${stock.pb.takeIf { it > 0 }?.let { formatPrice(it) } ?: "暂无"}\n")
-            if (stock.ma5 > 0 && stock.ma10 > 0 && stock.ma20 > 0) {
-                append("\n均线观察：\n")
-                append("MA5 ${formatPrice(stock.ma5)} · MA10 ${formatPrice(stock.ma10)} · MA20 ${formatPrice(stock.ma20)}\n")
-            }
-            if (stock.open > 0 || stock.high > 0 || stock.low > 0 || stock.yesterdayClose > 0) {
-                append("\n日内记录：\n")
-                append("开盘 ${formatPrice(stock.open)} · 最高 ${formatPrice(stock.high)} · 最低 ${formatPrice(stock.low)} · 昨收 ${formatPrice(stock.yesterdayClose)}\n")
-            }
-            append("\n说明：以上为公开行情字段和本机筛选记录，仅作数据观察和研究参考。")
-        }
+        val dialogBinding = DialogStockDetailBinding.inflate(layoutInflater)
+        val insight = StockBoardPolicy.evaluateDetail(stock)
+        dialogBinding.tvDetailName.text = stock.name
+        dialogBinding.tvDetailCode.text = getString(
+            R.string.stock_detail_code_industry,
+            stock.code,
+            stock.industry
+        )
+        dialogBinding.tvDetailPrice.text = formatPrice(stock.price)
+        dialogBinding.tvDetailChange.text = formatSignedPercent(stock.changePercent)
+        dialogBinding.tvDetailChange.setTextColor(
+            requireContext().getColor(
+                if (stock.changePercent >= 0) R.color.stock_up else R.color.stock_down
+            )
+        )
+        dialogBinding.tvDetailTone.text = insight.toneText
+        dialogBinding.tvDetailStrength.text = getString(
+            R.string.stock_detail_strength,
+            insight.score,
+            insight.grade
+        )
+        dialogBinding.progressDetailStrength.progress = insight.score
+        dialogBinding.tvDetailQuote.text = getString(R.string.stock_detail_quote, insight.priceActionText)
+        dialogBinding.tvDetailValuation.text = getString(R.string.stock_detail_valuation, insight.valuationText)
+        dialogBinding.tvDetailLiquidity.text = getString(R.string.stock_detail_liquidity, insight.liquidityText)
+        dialogBinding.tvDetailRisks.text = insight.riskItems.joinToString("\n") { "· $it" }
+        dialogBinding.tvDetailActions.text = insight.researchActions.joinToString("\n") { "· $it" }
+
         AlertDialog.Builder(requireContext())
-            .setTitle(stock.name)
-            .setMessage(message)
+            .setView(dialogBinding.root)
             .setPositiveButton(getString(R.string.stock_research_button)) { _, _ ->
                 showStockResearchReport(stock)
             }
             .setNegativeButton(getString(R.string.dialog_close), null)
             .show()
+    }
+
+    private fun renderBoardSnapshot(snapshot: StockBoardSnapshot?) {
+        if (snapshot == null) {
+            binding.stockBoardSummary.visibility = View.GONE
+            return
+        }
+
+        binding.stockBoardSummary.visibility = View.VISIBLE
+        binding.tvBoardHeadline.text = getString(
+            R.string.stock_board_headline,
+            snapshot.sampleCount,
+            formatPrice(snapshot.totalTurnover)
+        )
+        binding.tvBoardBreadth.text = getString(
+            R.string.stock_board_breadth,
+            snapshot.upCount,
+            snapshot.downCount,
+            snapshot.flatCount
+        )
+        binding.tvBoardGainers.text = getString(
+            R.string.stock_board_gainers,
+            formatStockList(snapshot.topGainers)
+        )
+        binding.tvBoardLosers.text = getString(
+            R.string.stock_board_losers,
+            formatStockList(snapshot.topLosers)
+        )
+        binding.tvBoardSectors.text = getString(
+            R.string.stock_board_sectors,
+            formatSectorList(snapshot.hotSectors)
+        )
     }
 
     private fun showStockResearchReport(stock: StockInfo) {
@@ -338,6 +384,20 @@ class StockSelectFragment : Fragment() {
 
     private fun formatSignedPercent(value: Double): String {
         return "${if (value >= 0) "+" else ""}${String.format(Locale.CHINA, "%.2f", value)}%"
+    }
+
+    private fun formatStockList(stocks: List<StockInfo>): String {
+        return stocks.takeIf { it.isNotEmpty() }
+            ?.joinToString(" · ") { "${it.name} ${formatSignedPercent(it.changePercent)}" }
+            ?: getString(R.string.stock_board_empty)
+    }
+
+    private fun formatSectorList(sectors: List<StockSectorPulse>): String {
+        return sectors.takeIf { it.isNotEmpty() }
+            ?.joinToString(" · ") {
+                "${it.name} ${formatSignedPercent(it.averageChangePercent)}，${it.leadingStockName} ${formatSignedPercent(it.leadingChangePercent)}"
+            }
+            ?: getString(R.string.stock_board_empty)
     }
 
     private fun formatAmount(value: Double): String {
