@@ -34,6 +34,11 @@ jobs:
       - name: Verify P0
         run: TianXianQuant/scripts/verify_p0.sh
 
+      - name: Build demo APK
+        run: |
+          cd TianXianQuant
+          ./gradlew :app:assembleDemo --console=plain
+
       - name: Verify backend contract scaffold
         run: scripts/verify_backend.sh
 
