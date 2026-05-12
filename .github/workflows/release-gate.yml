@@ -35,6 +35,17 @@ jobs:
           sudo apt-get install -y libxml2-utils
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Materialize release keystore
+        env:
+          TIANXIAN_RELEASE_KEYSTORE_BASE64: ${{ secrets.TIANXIAN_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${TIANXIAN_RELEASE_KEYSTORE_BASE64:-}" ]; then
+            echo "TIANXIAN_RELEASE_KEYSTORE_BASE64 secret is required" >&2
+            exit 1
+          fi
+          printf '%s' "$TIANXIAN_RELEASE_KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/tianxian-release.jks"
+          chmod 600 "${{ runner.temp }}/tianxian-release.jks"
+
       - name: Run paid release configuration gate
         env:
           TIANXIAN_PRODUCTION_API_BASE_URL: ${{ secrets.TIANXIAN_PRODUCTION_API_BASE_URL }}
@@ -42,7 +53,7 @@ jobs:
           TIANXIAN_TERMS_URL: ${{ secrets.TIANXIAN_TERMS_URL }}
           TIANXIAN_DATA_DISCLAIMER_URL: ${{ secrets.TIANXIAN_DATA_DISCLAIMER_URL }}
           TIANXIAN_SUPPORT_EMAIL: ${{ secrets.TIANXIAN_SUPPORT_EMAIL }}
-          TIANXIAN_RELEASE_KEYSTORE: ${{ secrets.TIANXIAN_RELEASE_KEYSTORE }}
+          TIANXIAN_RELEASE_KEYSTORE: ${{ runner.temp }}/tianxian-release.jks
           TIANXIAN_RELEASE_STORE_PASSWORD: ${{ secrets.TIANXIAN_RELEASE_STORE_PASSWORD }}
           TIANXIAN_RELEASE_KEY_ALIAS: ${{ secrets.TIANXIAN_RELEASE_KEY_ALIAS }}
           TIANXIAN_RELEASE_KEY_PASSWORD: ${{ secrets.TIANXIAN_RELEASE_KEY_PASSWORD }}

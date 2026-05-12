@@ -32,6 +32,7 @@ BUILD_RELEASE_SCRIPT = REPO_ROOT / "TianXianQuant" / "scripts" / "build_release_
 README_DOC = REPO_ROOT / "README.md"
 RELEASE_ENV_EXAMPLE = REPO_ROOT / "release.env.example"
 RELEASE_SIGNING_DOC = REPO_ROOT / "docs" / "RELEASE_SIGNING.md"
+RELEASE_GATE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-gate.yml"
 GRADLE_BUILD_FILE = REPO_ROOT / "TianXianQuant" / "app" / "build.gradle.kts"
 
 RELEASE_SIGNING_ARGV_GUARD_FILES = (
@@ -271,6 +272,21 @@ def test_precheck_redacts_keystore_path_on_missing_file() -> None:
     )
     assert NONEXISTENT_KEYSTORE not in combined, (
         "precheck leaked the full keystore path into output."
+    )
+
+
+def test_release_gate_materializes_keystore_secret_before_precheck() -> None:
+    text = RELEASE_GATE_WORKFLOW.read_text(encoding="utf-8")
+    assert "TIANXIAN_RELEASE_KEYSTORE_BASE64" in text, (
+        "GitHub release gate must accept a base64-encoded keystore secret and "
+        "materialize it to a runner-local file before the shell precheck runs."
+    )
+    assert "base64 --decode" in text
+    assert "${{ runner.temp }}/tianxian-release.jks" in text
+    assert "TIANXIAN_RELEASE_KEYSTORE: ${{ runner.temp }}/tianxian-release.jks" in text
+    assert "TIANXIAN_RELEASE_KEYSTORE: ${{ secrets.TIANXIAN_RELEASE_KEYSTORE }}" not in text, (
+        "the precheck expects TIANXIAN_RELEASE_KEYSTORE to be a file path, not "
+        "raw secret contents."
     )
 
 
