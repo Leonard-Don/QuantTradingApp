@@ -143,6 +143,37 @@ data class PortfolioHolding(
     val updatedAt: Long = 0L
 )
 
+enum class PriceAlertDirection(val storageValue: String, val displayName: String) {
+    ABOVE("ABOVE", "上穿目标价"),
+    BELOW("BELOW", "下破目标价");
+
+    companion object {
+        fun fromStorage(value: String): PriceAlertDirection {
+            return values().firstOrNull { it.storageValue == value } ?: ABOVE
+        }
+    }
+}
+
+data class PriceAlert(
+    val code: String,
+    val name: String,
+    val targetPrice: Double,
+    val direction: PriceAlertDirection,
+    val enabled: Boolean = true,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L,
+    val lastTriggeredAt: Long = 0L
+)
+
+data class PriceAlertTrigger(
+    val code: String,
+    val name: String,
+    val currentPrice: Double,
+    val targetPrice: Double,
+    val direction: PriceAlertDirection,
+    val statusText: String
+)
+
 data class VipPlan(
     val id: String,
     val name: String,

@@ -54,6 +54,16 @@
     <string name="stock_detail_risk_title">风险雷达</string>
     <string name="stock_detail_action_title">后续研究动作</string>
     <string name="stock_detail_notice">说明：以上基于公开行情字段和本机股票池计算，只做研究记录，不构成投资建议或交易指令。</string>
+    <string name="stock_price_alert_button">目标价提醒</string>
+    <string name="price_alert_dialog_title">%1$s 目标价提醒</string>
+    <string name="price_alert_notice">提醒只保存在本机，用于研究观察；不连接券商、不下单、不构成交易指令。触发检查依赖下次行情刷新和系统通知权限。</string>
+    <string name="price_alert_direction_above">上穿目标价</string>
+    <string name="price_alert_direction_below">下破目标价</string>
+    <string name="price_alert_target_hint">目标价</string>
+    <string name="price_alert_status_hint">当前现价 %1$s，请输入目标价查看触发状态。</string>
+    <string name="price_alert_save">保存提醒</string>
+    <string name="price_alert_delete">删除提醒</string>
+    <string name="price_alert_invalid_target">请输入大于 0 的目标价</string>
 
     <!-- Review -->
     <string name="market_summary">市场概况</string>
@@ -119,7 +129,7 @@
     <string name="auth_refresh_entitlements_done">账号与权益状态已刷新</string>
     <string name="auth_delete_account">删除账号与本机资料</string>
     <string name="auth_delete_account_confirm">确认删除</string>
-    <string name="auth_delete_account_confirm_message">将删除本机账号状态、自选池、持仓、帖子、评论、策略、复盘快照和行情缓存；启用服务端同步且当前已登录时，也会先请求删除服务端账号。此操作不可恢复。</string>
+    <string name="auth_delete_account_confirm_message">将删除本机账号状态、自选池、目标价提醒、持仓、帖子、评论、策略、复盘快照和行情缓存；启用服务端同步且当前已登录时，也会先请求删除服务端账号。此操作不可恢复。</string>
     <string name="auth_local_account_notice">未启用服务端同步时，账号信息仅保存在本机；启用后会同步登录态与 VIP 权益。</string>
     <string name="auth_compliance_support_title">合规与支持</string>
     <string name="auth_compliance_support_summary">查看隐私、协议、账号删除和内测支持说明。</string>
@@ -127,7 +137,7 @@
     <string name="auth_terms_of_service">用户协议</string>
     <string name="auth_support_contact">支持说明</string>
     <string name="auth_open_external_link">打开链接</string>
-    <string name="auth_privacy_policy_message">天线量化当前用于本机研究记录、行情样本展示、VIP 权益状态和每日提醒。未启用服务端同步时，账号、帖子、自选池、持仓、策略、复盘快照和行情缓存主要保存在本机；启用服务端同步后，会同步账号、令牌和权益状态。应用不接券商、不下单、不托管资金。</string>
+    <string name="auth_privacy_policy_message">天线量化当前用于本机研究记录、行情样本展示、VIP 权益状态和每日提醒。未启用服务端同步时，账号、帖子、自选池、目标价提醒、持仓、策略、复盘快照和行情缓存主要保存在本机；启用服务端同步后，会同步账号、令牌和权益状态。应用不接券商、不下单、不托管资金。</string>
     <string name="auth_terms_of_service_message">本应用提供行情样本、复盘、模型和历史模拟研究工具，所有内容仅作研究参考，不构成投资建议、收益承诺或具体买卖指令。正式付费发布前，需要补充真实支付、退款、取消、发票、客服主体和数据源授权规则。</string>
     <string name="auth_support_contact_message">账号删除入口已在本页提供。内测阶段如遇登录、权益、通知或数据问题，请通过当前安装包分发渠道联系支持，并附上手机号后四位、问题时间和同步状态。正式发布前应替换为公开客服邮箱、隐私政策 URL 和用户协议 URL。</string>
     <string name="auth_status_logged_in">已登录</string>

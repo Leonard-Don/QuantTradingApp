@@ -11,22 +11,28 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.widget.doOnTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.chip.Chip
 import com.google.android.material.textfield.TextInputEditText
 import com.tianxian.quant.R
+import com.tianxian.quant.databinding.DialogPriceAlertBinding
 import com.tianxian.quant.databinding.DialogStockDetailBinding
 import com.tianxian.quant.databinding.FragmentStockSelectBinding
+import com.tianxian.quant.model.PriceAlert
+import com.tianxian.quant.model.PriceAlertDirection
 import com.tianxian.quant.model.StockBoardPolicy
 import com.tianxian.quant.model.StockBoardSnapshot
 import com.tianxian.quant.model.StockFilterCriteria
 import com.tianxian.quant.model.StockSectorPulse
 import com.tianxian.quant.model.StockInfo
+import com.tianxian.quant.model.StockPriceAlertPolicy
 import com.tianxian.quant.model.StockResearchPolicy
 import com.tianxian.quant.model.StockResearchReport
 import com.tianxian.quant.ui.vip.VipActivity
 import com.tianxian.quant.viewmodel.StockSelectViewModel
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 class StockSelectFragment : Fragment() {
@@ -259,8 +265,92 @@ class StockSelectFragment : Fragment() {
             .setPositiveButton(getString(R.string.stock_research_button)) { _, _ ->
                 showStockResearchReport(stock)
             }
+            .setNeutralButton(getString(R.string.stock_price_alert_button)) { _, _ ->
+                showPriceAlertDialog(stock)
+            }
             .setNegativeButton(getString(R.string.dialog_close), null)
             .show()
+    }
+
+    private fun showPriceAlertDialog(stock: StockInfo) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val existingAlert = viewModel.getPriceAlert(stock.code)
+            val dialogBinding = DialogPriceAlertBinding.inflate(layoutInflater)
+
+            dialogBinding.etAlertTargetPrice.setText(
+                existingAlert?.targetPrice?.let(::formatPrice).orEmpty()
+            )
+            if (existingAlert?.direction == PriceAlertDirection.BELOW) {
+                dialogBinding.rbAlertBelow.isChecked = true
+            } else {
+                dialogBinding.rbAlertAbove.isChecked = true
+            }
+
+            fun selectedDirection(): PriceAlertDirection {
+                return if (dialogBinding.rbAlertBelow.isChecked) {
+                    PriceAlertDirection.BELOW
+                } else {
+                    PriceAlertDirection.ABOVE
+                }
+            }
+
+            fun renderStatus() {
+                val targetPrice = dialogBinding.etAlertTargetPrice.text
+                    ?.toString()
+                    ?.trim()
+                    ?.toDoubleOrNull()
+                if (targetPrice == null || targetPrice <= 0.0) {
+                    dialogBinding.tvAlertStatus.text = getString(
+                        R.string.price_alert_status_hint,
+                        formatPrice(stock.price)
+                    )
+                    return
+                }
+                val draftAlert = PriceAlert(
+                    code = stock.code,
+                    name = stock.name,
+                    targetPrice = targetPrice,
+                    direction = selectedDirection()
+                )
+                dialogBinding.tvAlertStatus.text =
+                    StockPriceAlertPolicy.evaluate(draftAlert, stock.price).statusText
+            }
+
+            dialogBinding.etAlertTargetPrice.doOnTextChanged { _, _, _, _ -> renderStatus() }
+            dialogBinding.rgAlertDirection.setOnCheckedChangeListener { _, _ -> renderStatus() }
+            renderStatus()
+
+            val dialog = AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.price_alert_dialog_title, stock.name))
+                .setView(dialogBinding.root)
+                .setPositiveButton(getString(R.string.price_alert_save), null)
+                .setNeutralButton(getString(R.string.price_alert_delete), null)
+                .setNegativeButton(getString(R.string.dialog_cancel), null)
+                .create()
+
+            dialog.setOnShowListener {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val targetPrice = dialogBinding.etAlertTargetPrice.text
+                        ?.toString()
+                        ?.trim()
+                        ?.toDoubleOrNull()
+                    if (targetPrice == null || targetPrice <= 0.0) {
+                        dialogBinding.etAlertTargetPrice.error =
+                            getString(R.string.price_alert_invalid_target)
+                        return@setOnClickListener
+                    }
+                    viewModel.savePriceAlert(stock, targetPrice, selectedDirection())
+                    dialog.dismiss()
+                }
+                val deleteButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+                deleteButton.visibility = if (existingAlert == null) View.GONE else View.VISIBLE
+                deleteButton.setOnClickListener {
+                    viewModel.deletePriceAlert(stock.code, stock.name)
+                    dialog.dismiss()
+                }
+            }
+            dialog.show()
+        }
     }
 
     private fun renderBoardSnapshot(snapshot: StockBoardSnapshot?) {

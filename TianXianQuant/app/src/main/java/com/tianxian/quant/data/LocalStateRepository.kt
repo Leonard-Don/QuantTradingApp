@@ -5,11 +5,15 @@ import com.tianxian.quant.BuildConfig
 import com.tianxian.quant.model.Post
 import com.tianxian.quant.model.PostComment
 import com.tianxian.quant.model.PortfolioHolding
+import com.tianxian.quant.model.PriceAlert
+import com.tianxian.quant.model.PriceAlertDirection
+import com.tianxian.quant.model.PriceAlertTrigger
 import com.tianxian.quant.model.Strategy
 import com.tianxian.quant.model.ReviewData
 import com.tianxian.quant.model.ReviewSnapshot
 import com.tianxian.quant.model.StockFilterCriteria
 import com.tianxian.quant.model.StockInfo
+import com.tianxian.quant.model.StockPriceAlertPolicy
 import com.tianxian.quant.model.VipExpiryPolicy
 import com.tianxian.quant.model.VipExpiryState
 import com.tianxian.quant.model.VipTier
@@ -389,6 +393,65 @@ object LocalStateRepository {
         db.stockWatchlistDao().delete(code)
     }
 
+    suspend fun getPriceAlert(code: String): PriceAlert? {
+        return db.priceAlertDao().get(code)?.toPriceAlert()
+    }
+
+    suspend fun savePriceAlert(
+        stock: StockInfo,
+        targetPrice: Double,
+        direction: PriceAlertDirection
+    ) {
+        val now = System.currentTimeMillis()
+        val existing = db.priceAlertDao().get(stock.code)
+        db.priceAlertDao().save(
+            PriceAlertEntity(
+                code = stock.code,
+                name = stock.name,
+                targetPrice = targetPrice,
+                direction = direction.storageValue,
+                enabled = true,
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
+                lastTriggeredAt = existing?.lastTriggeredAt ?: 0L
+            )
+        )
+    }
+
+    suspend fun deletePriceAlert(code: String) {
+        db.priceAlertDao().delete(code)
+    }
+
+    suspend fun consumeTriggeredPriceAlerts(
+        stocks: List<StockInfo>,
+        now: Long = System.currentTimeMillis()
+    ): List<PriceAlertTrigger> {
+        if (stocks.isEmpty()) return emptyList()
+        val stocksByCode = stocks.associateBy { it.code }
+        val alerts = db.priceAlertDao().getEnabledByCodes(stocksByCode.keys.toList())
+        if (alerts.isEmpty()) return emptyList()
+
+        return alerts.mapNotNull { entity ->
+            val stock = stocksByCode[entity.code] ?: return@mapNotNull null
+            val alert = entity.toPriceAlert().copy(name = stock.name)
+            val evaluation = StockPriceAlertPolicy.evaluate(alert, stock.price)
+            val recentlyTriggered = now - entity.lastTriggeredAt < PRICE_ALERT_COOLDOWN_MILLIS
+            if (!evaluation.triggered || recentlyTriggered) {
+                return@mapNotNull null
+            }
+
+            db.priceAlertDao().save(entity.copy(name = stock.name, updatedAt = now, lastTriggeredAt = now))
+            PriceAlertTrigger(
+                code = stock.code,
+                name = stock.name,
+                currentPrice = stock.price,
+                targetPrice = alert.targetPrice,
+                direction = alert.direction,
+                statusText = evaluation.statusText
+            )
+        }
+    }
+
     suspend fun getPortfolioHoldings(): List<PortfolioHolding> {
         return db.portfolioHoldingDao().getAll().map { it.toHolding() }
     }
@@ -595,6 +658,19 @@ object LocalStateRepository {
         )
     }
 
+    private fun PriceAlertEntity.toPriceAlert(): PriceAlert {
+        return PriceAlert(
+            code = code,
+            name = name,
+            targetPrice = targetPrice,
+            direction = PriceAlertDirection.fromStorage(direction),
+            enabled = enabled,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            lastTriggeredAt = lastTriggeredAt
+        )
+    }
+
     private fun Strategy.toEntity(createdAt: Long): StrategyEntity {
         return StrategyEntity(
             id = id,
@@ -699,6 +775,7 @@ object LocalStateRepository {
             db.postDao().clear()
             db.stockFilterDao().clear()
             db.stockWatchlistDao().clear()
+            db.priceAlertDao().clear()
             db.portfolioHoldingDao().clear()
             db.stockQuoteCacheDao().clear()
             db.subscriptionOrderDao().clear()
@@ -841,5 +918,6 @@ object LocalStateRepository {
     private const val DEMO_VIP_DURATION_MILLIS = DEMO_VIP_DURATION_DAYS * 24L * 60L * 60L * 1000L
     private const val DEMO_VIP_STATUS = "本机演示账号：全功能 VIP 已开通"
     private const val QUOTE_CACHE_MAX_AGE_MILLIS = 7L * 24L * 60L * 60L * 1000L
+    private const val PRICE_ALERT_COOLDOWN_MILLIS = 6L * 60L * 60L * 1000L
     private const val TOKEN_REFRESH_SKEW_MILLIS = 60L * 1000L
 }

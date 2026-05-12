@@ -4,7 +4,10 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tianxian.quant.MyApp
 import com.tianxian.quant.data.LocalStateRepository
+import com.tianxian.quant.model.PriceAlert
+import com.tianxian.quant.model.PriceAlertDirection
 import com.tianxian.quant.model.StockBoardPolicy
 import com.tianxian.quant.model.StockBoardSnapshot
 import com.tianxian.quant.model.StockFilterCriteria
@@ -14,6 +17,7 @@ import com.tianxian.quant.model.StockSearchIndex
 import com.tianxian.quant.model.hasMovingAverageData
 import com.tianxian.quant.network.MarketDataResult
 import com.tianxian.quant.network.MarketDataRepository
+import com.tianxian.quant.util.NotificationHelper
 import kotlinx.coroutines.launch
 
 class StockSelectViewModel : ViewModel() {
@@ -100,11 +104,13 @@ class StockSelectViewModel : ViewModel() {
                         _error.value = "行情请求失败，已切换离线样本。"
                     }
                 }
+                refreshTriggeredAlerts(allStocks)
                 applyCurrentFilter()
             } catch (e: Exception) {
                 allStocks = getFallbackData()
                 baseDataStatus = "实时行情暂不可用，当前展示离线样本数据。"
                 _error.value = "网络请求失败，已切换离线样本。"
+                refreshTriggeredAlerts(allStocks)
                 applyCurrentFilter()
             } finally {
                 _isLoading.value = false
@@ -135,6 +141,7 @@ class StockSelectViewModel : ViewModel() {
                             val enriched = attachMovingAverages(quotes)
                             val enrichedQuotes = enriched.stocks
                             mergeSearchResults(enrichedQuotes)
+                            refreshTriggeredAlerts(enrichedQuotes)
                             val maCount = enrichedQuotes.count { it.hasMovingAverageData() }
                             val sourceStatus = "行情源：${quoteResult.source}；均线源：${enriched.source ?: "暂无可用 K 线"} $maCount/${enrichedQuotes.size}。"
                             baseDataStatus = if (keyword.matches(Regex("\\d{6}"))) {
@@ -239,6 +246,28 @@ class StockSelectViewModel : ViewModel() {
         }
     }
 
+    suspend fun getPriceAlert(code: String): PriceAlert? {
+        return LocalStateRepository.getPriceAlert(code)
+    }
+
+    fun savePriceAlert(stock: StockInfo, targetPrice: Double, direction: PriceAlertDirection) {
+        viewModelScope.launch {
+            if (targetPrice <= 0.0) {
+                _error.value = "目标价需要大于 0"
+                return@launch
+            }
+            LocalStateRepository.savePriceAlert(stock, targetPrice, direction)
+            _error.value = "${stock.name} 本机目标价提醒已保存"
+        }
+    }
+
+    fun deletePriceAlert(code: String, name: String) {
+        viewModelScope.launch {
+            LocalStateRepository.deletePriceAlert(code)
+            _error.value = "$name 本机目标价提醒已删除"
+        }
+    }
+
     fun refreshVipState() {
         viewModelScope.launch {
             _isVipActive.value = LocalStateRepository.isStockVipActive()
@@ -333,6 +362,13 @@ class StockSelectViewModel : ViewModel() {
     private fun mergeSearchResults(stocks: List<StockInfo>) {
         val searchCodes = stocks.map { it.code }.toSet()
         allStocks = stocks + allStocks.filterNot { it.code in searchCodes }
+    }
+
+    private suspend fun refreshTriggeredAlerts(stocks: List<StockInfo>) {
+        val triggers = LocalStateRepository.consumeTriggeredPriceAlerts(stocks)
+        triggers.forEach { trigger ->
+            NotificationHelper.showPriceAlert(MyApp.instance, trigger)
+        }
     }
 
     private fun getFallbackData(): List<StockInfo> {

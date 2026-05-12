@@ -504,10 +504,19 @@ sleep 1
 STOCK_DETAIL_XML="$WORK_DIR/stock-detail.xml"
 dump_ui "$STOCK_DETAIL_XML"
 assert_node "$STOCK_DETAIL_XML" "text" "深度诊断(VIP)"
+assert_node "$STOCK_DETAIL_XML" "text" "目标价提醒"
 assert_text_contains "$STOCK_DETAIL_XML" "指标强度"
 assert_node "$STOCK_DETAIL_XML" "text" "风险雷达"
 assert_node "$STOCK_DETAIL_XML" "text" "后续研究动作"
-tap_node "$STOCK_DETAIL_XML" "text" "关闭"
+tap_node "$STOCK_DETAIL_XML" "text" "目标价提醒"
+sleep 1
+PRICE_ALERT_XML="$WORK_DIR/price-alert.xml"
+dump_ui "$PRICE_ALERT_XML"
+assert_text_contains "$PRICE_ALERT_XML" "目标价提醒"
+assert_text_contains "$PRICE_ALERT_XML" "本机"
+assert_node "$PRICE_ALERT_XML" "text" "上穿目标价"
+assert_node "$PRICE_ALERT_XML" "text" "保存提醒"
+tap_node "$PRICE_ALERT_XML" "text" "取消"
 sleep 1
 
 echo "== Checking VIP and auth path =="

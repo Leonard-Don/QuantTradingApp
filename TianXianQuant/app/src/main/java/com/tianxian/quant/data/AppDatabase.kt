@@ -98,6 +98,18 @@ data class StockWatchlistEntity(
     val createdAt: Long
 )
 
+@Entity(tableName = "price_alerts")
+data class PriceAlertEntity(
+    @PrimaryKey val code: String,
+    val name: String,
+    val targetPrice: Double,
+    val direction: String,
+    val enabled: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val lastTriggeredAt: Long
+)
+
 @Entity(tableName = "portfolio_holdings")
 data class PortfolioHoldingEntity(
     @PrimaryKey val code: String,
@@ -260,6 +272,24 @@ interface StockWatchlistDao {
 }
 
 @Dao
+interface PriceAlertDao {
+    @Query("SELECT * FROM price_alerts WHERE code = :code LIMIT 1")
+    suspend fun get(code: String): PriceAlertEntity?
+
+    @Query("SELECT * FROM price_alerts WHERE code IN (:codes) AND enabled = 1")
+    suspend fun getEnabledByCodes(codes: List<String>): List<PriceAlertEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(alert: PriceAlertEntity)
+
+    @Query("DELETE FROM price_alerts WHERE code = :code")
+    suspend fun delete(code: String)
+
+    @Query("DELETE FROM price_alerts")
+    suspend fun clear()
+}
+
+@Dao
 interface PortfolioHoldingDao {
     @Query("SELECT * FROM portfolio_holdings ORDER BY updatedAt DESC")
     suspend fun getAll(): List<PortfolioHoldingEntity>
@@ -324,12 +354,13 @@ interface ReviewSnapshotDao {
         PostCommentEntity::class,
         StockFilterEntity::class,
         StockWatchlistEntity::class,
+        PriceAlertEntity::class,
         PortfolioHoldingEntity::class,
         StockQuoteCacheEntity::class,
         StrategyEntity::class,
         ReviewSnapshotEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -339,6 +370,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun postCommentDao(): PostCommentDao
     abstract fun stockFilterDao(): StockFilterDao
     abstract fun stockWatchlistDao(): StockWatchlistDao
+    abstract fun priceAlertDao(): PriceAlertDao
     abstract fun portfolioHoldingDao(): PortfolioHoldingDao
     abstract fun stockQuoteCacheDao(): StockQuoteCacheDao
     abstract fun strategyDao(): StrategyDao
@@ -357,7 +389,7 @@ abstract class AppDatabase : RoomDatabase() {
 
 const val LOCAL_USER_ID = "local_user"
 const val DEFAULT_FILTER_ID = "default"
-private const val CURRENT_DATABASE_VERSION = 13
+private const val CURRENT_DATABASE_VERSION = 14
 
 val APP_DATABASE_MIGRATIONS: Array<Migration> = (1 until CURRENT_DATABASE_VERSION)
     .map { startVersion ->
@@ -586,6 +618,22 @@ private val CURRENT_TABLES = listOf(
             textColumn("name", ""),
             textColumn("industry", ""),
             intColumn("createdAt")
+        )
+    ),
+    TableSpec(
+        name = "price_alerts",
+        columnsSql = "`code` TEXT NOT NULL, `name` TEXT NOT NULL, `targetPrice` REAL NOT NULL, " +
+            "`direction` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, " +
+            "`updatedAt` INTEGER NOT NULL, `lastTriggeredAt` INTEGER NOT NULL, PRIMARY KEY(`code`)",
+        columns = listOf(
+            textColumn("code", ""),
+            textColumn("name", ""),
+            realColumn("targetPrice"),
+            textColumn("direction", "ABOVE"),
+            intColumn("enabled", "1"),
+            intColumn("createdAt"),
+            intColumn("updatedAt"),
+            intColumn("lastTriggeredAt")
         )
     ),
     TableSpec(

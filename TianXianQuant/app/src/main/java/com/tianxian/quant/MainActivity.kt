@@ -68,5 +68,10 @@ class MainActivity : AppCompatActivity() {
             return Intent(context, MainActivity::class.java)
                 .putExtra(EXTRA_TARGET_TAB, TARGET_REVIEW)
         }
+
+        fun stockIntent(context: Context): Intent {
+            return Intent(context, MainActivity::class.java)
+                .putExtra(EXTRA_TARGET_TAB, TARGET_STOCK)
+        }
     }
 }

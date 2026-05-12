@@ -16,6 +16,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.tianxian.quant.MainActivity
 import com.tianxian.quant.R
+import com.tianxian.quant.model.PriceAlertTrigger
+import com.tianxian.quant.model.StockPriceAlertPolicy
 import com.tianxian.quant.receiver.ResearchReminderReceiver
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -28,6 +30,7 @@ object NotificationHelper {
     private const val CHANNEL_ID = "research_alerts"
     private const val CHANNEL_NAME = "研究提醒"
     private const val REMINDER_ID = 1001
+    private const val PRICE_ALERT_ID_BASE = 1200
     private const val REMINDER_REQUEST_CODE = 2026
     private const val OPEN_APP_REQUEST_CODE = 2027
     private const val REMINDER_HOUR = 18
@@ -85,11 +88,31 @@ object NotificationHelper {
         postNotification(context, notification)
     }
 
+    fun showPriceAlert(context: Context, trigger: PriceAlertTrigger) {
+        if (!canPostNotifications(context)) return
+        ensureChannel(context)
+        val summary = StockPriceAlertPolicy.triggerSummary(trigger)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("目标价研究提醒：${trigger.name}")
+            .setContentText(summary)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+            .setContentIntent(openStockPendingIntent(context))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+        postNotification(context, notification, priceAlertNotificationId(trigger.code))
+    }
+
     @SuppressLint("MissingPermission")
-    private fun postNotification(context: Context, notification: Notification) {
+    private fun postNotification(
+        context: Context,
+        notification: Notification,
+        notificationId: Int = REMINDER_ID
+    ) {
         if (!canPostNotifications(context)) return
         try {
-            NotificationManagerCompat.from(context).notify(REMINDER_ID, notification)
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
         } catch (_: SecurityException) {
             // Permission can be revoked between the check and notify call.
         }
@@ -114,6 +137,18 @@ object NotificationHelper {
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         return PendingIntent.getActivity(context, OPEN_APP_REQUEST_CODE, intent, flags)
+    }
+
+    private fun openStockPendingIntent(context: Context): PendingIntent {
+        val intent = MainActivity.stockIntent(context).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        return PendingIntent.getActivity(context, OPEN_APP_REQUEST_CODE + 1, intent, flags)
+    }
+
+    private fun priceAlertNotificationId(code: String): Int {
+        return PRICE_ALERT_ID_BASE + (code.hashCode() and 0x7fffffff) % 700
     }
 
     private fun nextReminderTimeMillis(): Long {
