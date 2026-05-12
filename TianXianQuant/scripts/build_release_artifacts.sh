@@ -18,31 +18,75 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
   exit 1
 fi
 
-if [[ -n "${TIANXIAN_RELEASE_KEYSTORE:-}" && ! -f "$TIANXIAN_RELEASE_KEYSTORE" ]]; then
-  echo "TIANXIAN_RELEASE_KEYSTORE points to a missing file: $TIANXIAN_RELEASE_KEYSTORE" >&2
-  exit 1
-fi
-
 args=(
   :app:assembleRelease
   :app:bundleRelease
   --console=plain
 )
 
+# Keep release-signing values out of Gradle argv. Gradle reads
+# ORG_GRADLE_PROJECT_* env vars as project properties, which keeps local
+# keystore paths and passwords out of echoed command lines and failure output.
+unset ORG_GRADLE_PROJECT_tianxianReleaseKeystore
+unset ORG_GRADLE_PROJECT_tianxianReleaseStorePassword
+unset ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias
+unset ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword
+
 if [[ -n "${TIANXIAN_RELEASE_KEYSTORE:-}" ]]; then
-  args+=("-PtianxianReleaseKeystore=$TIANXIAN_RELEASE_KEYSTORE")
+  if [[ ! -f "$TIANXIAN_RELEASE_KEYSTORE" ]]; then
+    echo "TIANXIAN_RELEASE_KEYSTORE points to a missing file" >&2
+    exit 1
+  fi
+  export ORG_GRADLE_PROJECT_tianxianReleaseKeystore="$TIANXIAN_RELEASE_KEYSTORE"
 fi
 if [[ -n "${TIANXIAN_RELEASE_STORE_PASSWORD:-}" ]]; then
-  args+=("-PtianxianReleaseStorePassword=$TIANXIAN_RELEASE_STORE_PASSWORD")
+  export ORG_GRADLE_PROJECT_tianxianReleaseStorePassword="$TIANXIAN_RELEASE_STORE_PASSWORD"
 fi
 if [[ -n "${TIANXIAN_RELEASE_KEY_ALIAS:-}" ]]; then
-  args+=("-PtianxianReleaseKeyAlias=$TIANXIAN_RELEASE_KEY_ALIAS")
+  export ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias="$TIANXIAN_RELEASE_KEY_ALIAS"
 fi
 if [[ -n "${TIANXIAN_RELEASE_KEY_PASSWORD:-}" ]]; then
-  args+=("-PtianxianReleaseKeyPassword=$TIANXIAN_RELEASE_KEY_PASSWORD")
+  export ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword="$TIANXIAN_RELEASE_KEY_PASSWORD"
 fi
 
-"$ROOT_DIR/gradlew" "${args[@]}"
+redact_release_signing_output() {
+  python3 -c '
+import os
+import sys
+
+text = sys.stdin.read()
+redactions = []
+for name, replacement in (
+    ("TIANXIAN_RELEASE_KEYSTORE", "[redacted-keystore]"),
+    ("TIANXIAN_RELEASE_STORE_PASSWORD", "[redacted-store-password]"),
+    ("TIANXIAN_RELEASE_KEY_ALIAS", "[redacted-key-alias]"),
+    ("TIANXIAN_RELEASE_KEY_PASSWORD", "[redacted-key-password]"),
+):
+    value = os.environ.get(name)
+    if value:
+        redactions.append((value, replacement))
+
+# Redact longer values first so overlapping secrets cannot leave suffixes behind
+# (for example alias=foo and keyPassword=foo-bar).
+for value, replacement in sorted(set(redactions), key=lambda item: len(item[0]), reverse=True):
+    text = text.replace(value, replacement)
+sys.stdout.write(text)
+'
+}
+
+set +e
+"$ROOT_DIR/gradlew" "${args[@]}" 2>&1 | redact_release_signing_output
+pipeline_status=("${PIPESTATUS[@]}")
+gradle_status=${pipeline_status[0]}
+redactor_status=${pipeline_status[1]}
+set -e
+if (( redactor_status != 0 )); then
+  echo "Release output redactor failed" >&2
+  exit "$redactor_status"
+fi
+if (( gradle_status != 0 )); then
+  exit "$gradle_status"
+fi
 
 echo "Release APK:"
 find "$ROOT_DIR/app/build/outputs/apk/release" -name '*.apk' -maxdepth 1 -print

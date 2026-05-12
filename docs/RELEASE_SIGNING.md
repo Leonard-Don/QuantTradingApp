@@ -1,6 +1,6 @@
 # Release Signing And Store Candidate Setup
 
-Last reviewed: 2026-05-02
+Last reviewed: 2026-05-07
 
 This project can build unsigned release artifacts locally. A store-test or paid-release candidate must be signed with an upload key that is kept outside git.
 
@@ -24,6 +24,8 @@ export TIANXIAN_RELEASE_KEY_PASSWORD=<key-password>
 ```
 
 The Gradle release build reads these values through project properties. `TianXianQuant/scripts/build_release_artifacts.sh` and `scripts/verify_paid_release_config.sh` pass them automatically when the environment variables are set.
+
+The wrappers intentionally translate `TIANXIAN_RELEASE_*` values into `ORG_GRADLE_PROJECT_tianxianRelease*` environment variables. Do not pass signing values with Gradle's `-P` command-line option; argv can be echoed by CI logs, shell history, or process inspection. Keep release-signing examples in this file limited to environment variables and synthetic placeholders.
 
 ## Build A Signed Candidate
 
