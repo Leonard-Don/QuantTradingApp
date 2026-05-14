@@ -244,6 +244,46 @@ class DataHealthSummaryTest {
     }
 
     @Test
+    fun excessiveFutureTimestampIsReportedAsError() {
+        val summary = DataHealthSummarizer.summarize(
+            evaluate(
+                providerName = "腾讯多源 quote",
+                lastUpdatedAt = baseNow + 10L * 60 * 1000L,
+            )
+        )
+
+        assertEquals(DataHealthSeverity.ERROR, summary.severity)
+        assertTrue(summary.shouldShowBanner)
+        assertEquals("数据时间戳异常", summary.headline)
+        assertTrue(summary.detailLines.any { it.contains("时钟") })
+        assertNotNull(summary.primaryReason)
+    }
+
+    @Test
+    fun multiChannelClockSkewSurfacesAsTimestampAnomaly() {
+        val skewed = evaluate(
+            providerName = "腾讯多源 quote",
+            lastUpdatedAt = baseNow + 10L * 60 * 1000L,
+        )
+        val klineFresh = evaluate(
+            providerName = "东方财富日线",
+            ageMillis = 5 * 60_000L,
+            window = FreshnessWindow.KLINE,
+        )
+
+        val summary = DataHealthSummarizer.summarize(
+            listOf(
+                DataHealthChannel("行情", skewed),
+                DataHealthChannel("K 线", klineFresh),
+            )
+        )
+
+        assertEquals(DataHealthSeverity.ERROR, summary.severity)
+        assertEquals("行情数据时间戳异常", summary.headline)
+        assertTrue(summary.detailLines.first().contains("行情·时钟异常"))
+    }
+
+    @Test
     fun multiChannelUnavailableBeatsStale() {
         val staleChannel = evaluate(
             providerName = "东方财富日线",

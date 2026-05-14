@@ -106,6 +106,24 @@ class ProviderHealthPolicyTest {
     }
 
     @Test
+    fun failureMessageTakesPrecedenceOverFutureTimestampSkew() {
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "腾讯多源 quote",
+            lastUpdatedAt = baseNow + 10 * 60_000L,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE,
+            failureMessage = "行情源均不可用：HTTP 503",
+        )
+
+        assertEquals(Freshness.UNAVAILABLE, report.freshness)
+        assertFalse(report.isUsable)
+        assertFalse(report.hasClockSkew)
+        assertEquals(10 * 60_000L, report.clockSkewMillis)
+        assertTrue(report.statusText.contains("数据源不可用"))
+        assertEquals("行情源均不可用：HTTP 503", report.fallbackReason)
+    }
+
+    @Test
     fun missingLastUpdatedReportsUnavailableEvenWithoutFailure() {
         val report = ProviderHealthPolicy.evaluate(
             providerName = "腾讯多源 quote",
@@ -147,6 +165,110 @@ class ProviderHealthPolicyTest {
 
         assertEquals(Freshness.FRESH, report.freshness)
         assertEquals(0L, report.ageMillis)
+    }
+
+    @Test
+    fun defaultProvenanceIsUnknownForBackwardCompatibleCalls() {
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "腾讯多源 quote",
+            lastUpdatedAt = baseNow - 60_000L,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE
+        )
+
+        assertEquals(TimestampSource.UNKNOWN, report.provenance.timestampSource)
+        assertNull(report.provenance.sourceLabel)
+        assertEquals(0L, report.clockSkewMillis)
+        assertFalse(report.hasClockSkew)
+    }
+
+    @Test
+    fun providedProvenanceIsCarriedThrough() {
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "本机行情缓存",
+            lastUpdatedAt = baseNow - 30 * 60_000L,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE,
+            timestampSource = TimestampSource.LOCAL_CACHE,
+            sourceLabel = "原始来源：腾讯多源 quote",
+            isFallback = true,
+        )
+
+        assertEquals(TimestampSource.LOCAL_CACHE, report.provenance.timestampSource)
+        assertEquals("原始来源：腾讯多源 quote", report.provenance.sourceLabel)
+    }
+
+    @Test
+    fun smallFutureSkewWithinToleranceStaysFreshButRecordsSkew() {
+        val skew = 45_000L
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "腾讯多源 quote",
+            lastUpdatedAt = baseNow + skew,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE,
+        )
+
+        assertEquals(Freshness.FRESH, report.freshness)
+        assertEquals(0L, report.ageMillis)
+        assertEquals(skew, report.clockSkewMillis)
+        assertFalse("tolerable skew must not be flagged", report.hasClockSkew)
+        assertNull(report.bannerText)
+    }
+
+    @Test
+    fun excessiveFutureTimestampIsTreatedAsUnavailableNotFresh() {
+        val skew = 10L * 60 * 1000L
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "腾讯多源 quote",
+            lastUpdatedAt = baseNow + skew,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE,
+        )
+
+        assertEquals(Freshness.UNAVAILABLE, report.freshness)
+        assertFalse(report.isUsable)
+        assertTrue(report.hasClockSkew)
+        assertEquals(skew, report.clockSkewMillis)
+        assertTrue(
+            "status should mention clock skew",
+            report.statusText.contains("时钟")
+        )
+        assertNotNull(report.bannerText)
+        assertTrue(report.bannerText!!.contains("时钟"))
+        assertNotNull(report.fallbackReason)
+    }
+
+    @Test
+    fun customClockSkewToleranceIsHonored() {
+        val skew = 90_000L
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "腾讯多源 quote",
+            lastUpdatedAt = baseNow + skew,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE,
+            clockSkewToleranceMillis = 120_000L,
+        )
+
+        assertEquals(Freshness.FRESH, report.freshness)
+        assertEquals(skew, report.clockSkewMillis)
+        assertFalse(report.hasClockSkew)
+    }
+
+    @Test
+    fun fallbackWithoutTimestampSurfacesUnavailableNotFresh() {
+        val report = ProviderHealthPolicy.evaluate(
+            providerName = "新浪行情",
+            lastUpdatedAt = 0L,
+            now = baseNow,
+            window = FreshnessWindow.QUOTE,
+            isFallback = true,
+            warnings = listOf("腾讯 quote 请求失败：HTTP 503"),
+            timestampSource = TimestampSource.FALLBACK_PROVIDER,
+        )
+
+        assertEquals(Freshness.UNAVAILABLE, report.freshness)
+        assertFalse(report.isUsable)
+        assertEquals(TimestampSource.FALLBACK_PROVIDER, report.provenance.timestampSource)
     }
 
     @Test
