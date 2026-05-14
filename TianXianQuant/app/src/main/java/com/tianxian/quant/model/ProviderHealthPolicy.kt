@@ -12,6 +12,24 @@ enum class Freshness(val displayName: String) {
     UNAVAILABLE("不可用")
 }
 
+enum class TimestampSource(val displayName: String) {
+    QUOTE("行情接口"),
+    KLINE("K 线接口"),
+    LOCAL_CACHE("本机缓存"),
+    FALLBACK_PROVIDER("备用数据源"),
+    SYSTEM_NOW("系统时间"),
+    UNKNOWN("未知")
+}
+
+data class ProviderProvenance(
+    val timestampSource: TimestampSource = TimestampSource.UNKNOWN,
+    val sourceLabel: String? = null,
+) {
+    companion object {
+        val UNKNOWN = ProviderProvenance()
+    }
+}
+
 data class FreshnessWindow(
     val freshWithinMillis: Long,
     val staleAfterMillis: Long,
@@ -57,9 +75,14 @@ data class ProviderHealth(
     val fallbackReason: String?,
     val statusText: String,
     val bannerText: String?,
+    val provenance: ProviderProvenance = ProviderProvenance.UNKNOWN,
+    val clockSkewMillis: Long = 0L,
+    val hasClockSkew: Boolean = false,
 )
 
 object ProviderHealthPolicy {
+
+    const val DEFAULT_CLOCK_SKEW_TOLERANCE_MILLIS: Long = 60_000L
 
     fun evaluate(
         providerName: String,
@@ -69,7 +92,18 @@ object ProviderHealthPolicy {
         warnings: List<String> = emptyList(),
         failureMessage: String? = null,
         isFallback: Boolean = false,
+        timestampSource: TimestampSource = TimestampSource.UNKNOWN,
+        sourceLabel: String? = null,
+        clockSkewToleranceMillis: Long = DEFAULT_CLOCK_SKEW_TOLERANCE_MILLIS,
     ): ProviderHealth {
+        val provenance = ProviderProvenance(
+            timestampSource = timestampSource,
+            sourceLabel = sourceLabel,
+        )
+        val rawSkew = if (lastUpdatedAt > 0L) (lastUpdatedAt - now).coerceAtLeast(0L) else 0L
+        val tolerance = clockSkewToleranceMillis.coerceAtLeast(0L)
+        val skewExceedsTolerance = rawSkew > tolerance
+
         if (!failureMessage.isNullOrBlank()) {
             return ProviderHealth(
                 providerName = providerName,
@@ -81,6 +115,9 @@ object ProviderHealthPolicy {
                 fallbackReason = failureMessage,
                 statusText = "$providerName · 数据源不可用：$failureMessage",
                 bannerText = "数据源不可用，请检查网络或稍后重试。",
+                provenance = provenance,
+                clockSkewMillis = rawSkew,
+                hasClockSkew = false,
             )
         }
         if (lastUpdatedAt <= 0L) {
@@ -94,6 +131,27 @@ object ProviderHealthPolicy {
                 fallbackReason = warnings.firstOrNull() ?: "未获取到数据更新时间",
                 statusText = "$providerName · 暂无可信刷新时间",
                 bannerText = "未获取到数据更新时间，建议手动刷新。",
+                provenance = provenance,
+                clockSkewMillis = 0L,
+                hasClockSkew = false,
+            )
+        }
+
+        if (skewExceedsTolerance) {
+            val skewText = formatDuration(rawSkew)
+            return ProviderHealth(
+                providerName = providerName,
+                lastUpdatedAt = lastUpdatedAt,
+                ageMillis = 0L,
+                freshness = Freshness.UNAVAILABLE,
+                isUsable = false,
+                isFallback = isFallback,
+                fallbackReason = "数据时间戳来自未来 $skewText，疑似时钟异常",
+                statusText = "$providerName · 时钟异常：更新时间晚于当前 $skewText",
+                bannerText = "检测到数据时间戳超前 $skewText，可能本机或数据源时钟不准，请校时后重试。",
+                provenance = provenance,
+                clockSkewMillis = rawSkew,
+                hasClockSkew = true,
             )
         }
 
@@ -122,6 +180,9 @@ object ProviderHealthPolicy {
             fallbackReason = fallbackReason,
             statusText = buildStatusText(providerName, lastUpdatedAt, age, freshness, isFallback),
             bannerText = buildBannerText(freshness, age, fallbackReason),
+            provenance = provenance,
+            clockSkewMillis = rawSkew,
+            hasClockSkew = false,
         )
     }
 

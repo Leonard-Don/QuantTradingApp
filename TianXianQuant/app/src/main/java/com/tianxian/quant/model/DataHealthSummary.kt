@@ -69,7 +69,11 @@ object DataHealthSummarizer {
                 "${worst.first.label}有延迟，仍可参考"
             }
             DataHealthSeverity.WARNING -> "${worst.first.label}数据已过期或来自备用源"
-            DataHealthSeverity.ERROR -> "${worst.first.label}数据源不可用"
+            DataHealthSeverity.ERROR -> if (worst.first.health.hasClockSkew) {
+                "${worst.first.label}数据时间戳异常"
+            } else {
+                "${worst.first.label}数据源不可用"
+            }
         }
 
         val details = perChannel
@@ -104,8 +108,9 @@ object DataHealthSummarizer {
             DataHealthSeverity.OK -> "数据最新"
             DataHealthSeverity.INFO -> if (health.isFallback) "已切换至备用数据源" else "数据有轻微延迟"
             DataHealthSeverity.WARNING -> "数据已过期，请留意"
-            DataHealthSeverity.ERROR -> when (health.freshness) {
-                Freshness.UNAVAILABLE -> "数据源不可用"
+            DataHealthSeverity.ERROR -> when {
+                health.hasClockSkew -> "数据时间戳异常"
+                health.freshness == Freshness.UNAVAILABLE -> "数据源不可用"
                 else -> "数据已严重过期，请刷新"
             }
         }
@@ -116,7 +121,11 @@ object DataHealthSummarizer {
             DataHealthSeverity.OK -> "正常"
             DataHealthSeverity.INFO -> if (channel.health.isFallback) "备用" else "延迟"
             DataHealthSeverity.WARNING -> if (channel.health.isFallback) "备用过期" else "过期"
-            DataHealthSeverity.ERROR -> if (channel.health.freshness == Freshness.UNAVAILABLE) "不可用" else "严重过期"
+            DataHealthSeverity.ERROR -> when {
+                channel.health.hasClockSkew -> "时钟异常"
+                channel.health.freshness == Freshness.UNAVAILABLE -> "不可用"
+                else -> "严重过期"
+            }
         }
         return "[${channel.label}·$tag] ${channel.health.statusText}"
     }
