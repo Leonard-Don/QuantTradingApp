@@ -52,7 +52,7 @@ object SinaStockApi {
             } else {
                 0.0
             }
-            val amountYi = fields.getOrNull(9).toDoubleValue() / 100_000_000.0
+            val amountYi = parseAmountYi(fields.getOrNull(9))
             stocks += StockInfo(
                 code = code,
                 name = fields[0].trim(),
@@ -90,7 +90,7 @@ object SinaStockApi {
                 changePercent = changePercent,
                 changePoint = changePoint,
                 volume = fields.getOrNull(8).toLongValue(),
-                amount = fields.getOrNull(9).toDoubleValue() / 100_000_000.0
+                amount = parseAmountYi(fields.getOrNull(9))
             )
         }
         return markets
@@ -131,6 +131,21 @@ object SinaStockApi {
     private fun String?.toDoubleValue(): Double = this?.trim()?.toDoubleOrNull() ?: 0.0
 
     private fun String?.toLongValue(): Long = this?.trim()?.toDoubleOrNull()?.toLong() ?: 0L
+
+    internal fun parseAmountYi(rawAmountYuan: String?): Double {
+        return parseAmountYiOrNull(rawAmountYuan) ?: 0.0
+    }
+
+    // Returns null when the raw amount is missing/blank/malformed so callers can
+    // distinguish "no data" from a true numeric 0. parseAmountYi keeps the legacy
+    // non-null contract for model fields that require Double.
+    internal fun parseAmountYiOrNull(rawAmountYuan: String?): Double? {
+        val trimmed = rawAmountYuan?.trim()
+        if (trimmed.isNullOrEmpty()) return null
+        val yuan = trimmed.toDoubleOrNull() ?: return null
+        if (!yuan.isFinite()) return null
+        return yuan / 100_000_000.0
+    }
 
     private fun inferIndustry(code: String, name: String): String {
         return IndustryPolicy.infer(code, name)

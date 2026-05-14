@@ -1,10 +1,68 @@
 package com.tianxian.quant.network
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SinaStockApiTest {
+
+    @Test
+    fun parseAmountYiOrNull_returnsNullForNullInput() {
+        assertNull(SinaStockApi.parseAmountYiOrNull(null))
+    }
+
+    @Test
+    fun parseAmountYiOrNull_returnsNullForBlankInput() {
+        assertNull(SinaStockApi.parseAmountYiOrNull(""))
+        assertNull(SinaStockApi.parseAmountYiOrNull("   "))
+    }
+
+    @Test
+    fun parseAmountYiOrNull_returnsNullForMalformedInput() {
+        assertNull(SinaStockApi.parseAmountYiOrNull("abc"))
+        assertNull(SinaStockApi.parseAmountYiOrNull("--"))
+        assertNull(SinaStockApi.parseAmountYiOrNull("NaN"))
+        assertNull(SinaStockApi.parseAmountYiOrNull("Infinity"))
+        assertNull(SinaStockApi.parseAmountYiOrNull("-Infinity"))
+    }
+
+    @Test
+    fun parseAmountYiOrNull_returnsZeroForTrueZero() {
+        val parsed = SinaStockApi.parseAmountYiOrNull("0")
+        assertNotNull("true \"0\" must be distinguishable from missing", parsed)
+        assertEquals(0.0, parsed!!, 0.0)
+    }
+
+    @Test
+    fun parseAmountYiOrNull_convertsYuanToYi() {
+        // 5 亿元 = 500000000 元
+        val parsed = SinaStockApi.parseAmountYiOrNull("500000000")
+        assertNotNull(parsed)
+        assertEquals(5.0, parsed!!, 1e-9)
+    }
+
+    @Test
+    fun parseAmountYi_defaultsToZeroForMissingOrMalformed() {
+        // Blank/malformed amounts must NOT inflate turnover; they collapse to 0.0
+        // (StockInfo requires non-null Double — use parseAmountYiOrNull to disambiguate).
+        assertEquals(0.0, SinaStockApi.parseAmountYi(null), 0.0)
+        assertEquals(0.0, SinaStockApi.parseAmountYi(""), 0.0)
+        assertEquals(0.0, SinaStockApi.parseAmountYi("   "), 0.0)
+        assertEquals(0.0, SinaStockApi.parseAmountYi("abc"), 0.0)
+    }
+
+    @Test
+    fun parseAmountYi_returnsZeroForTrueZero() {
+        assertEquals(0.0, SinaStockApi.parseAmountYi("0"), 0.0)
+    }
+
+    @Test
+    fun parseAmountYi_convertsYuanToYi() {
+        assertEquals(9.79940605, SinaStockApi.parseAmountYi("979940605.000"), 1e-8)
+    }
+
     @Test
     fun parsesStockQuoteRows() {
         val stocks = SinaStockApi.parseStockList(
