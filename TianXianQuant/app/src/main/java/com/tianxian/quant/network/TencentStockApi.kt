@@ -234,8 +234,18 @@ object TencentStockApi {
         emptyList()
     }
 
-    private fun parseAmountYi(rawAmountWan: String?): Double {
-        return (rawAmountWan?.toDoubleOrNull() ?: 0.0) / 10_000.0
+    internal fun parseAmountYi(rawAmountWan: String?): Double {
+        return parseAmountYiOrNull(rawAmountWan) ?: 0.0
+    }
+
+    // Returns null when the raw amount is missing/blank/malformed so callers can
+    // distinguish "no data" from a true numeric 0. parseAmountYi keeps the legacy
+    // non-null contract for model fields that require Double.
+    internal fun parseAmountYiOrNull(rawAmountWan: String?): Double? {
+        val trimmed = rawAmountWan?.trim()
+        if (trimmed.isNullOrEmpty()) return null
+        val wan = trimmed.toDoubleOrNull() ?: return null
+        return wan / 10_000.0
     }
 
     private const val SOURCE_NAME = "腾讯公开 quote"
