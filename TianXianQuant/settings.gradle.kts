@@ -19,3 +19,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TianXianQuant"
 include(":app")
+include(":benchmarks")
