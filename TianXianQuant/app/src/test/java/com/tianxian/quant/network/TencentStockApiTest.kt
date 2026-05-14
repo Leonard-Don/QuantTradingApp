@@ -25,6 +25,24 @@ class TencentStockApiTest {
     }
 
     @Test
+    fun parseAmountYiOrNull_returnsNullForNonFiniteInput() {
+        // Java/Kotlin Double.parseDouble accepts "NaN"/"Infinity"/"-Infinity" as
+        // valid doubles. Without an isFinite() guard, a malformed Tencent amount
+        // field bypasses the null-vs-zero contract and propagates Infinity/NaN
+        // into turnover/provider-health surfaces. Mirrors SinaStockApi behavior.
+        assertNull(TencentStockApi.parseAmountYiOrNull("NaN"))
+        assertNull(TencentStockApi.parseAmountYiOrNull("Infinity"))
+        assertNull(TencentStockApi.parseAmountYiOrNull("-Infinity"))
+    }
+
+    @Test
+    fun parseAmountYi_returnsZeroForNonFiniteInput() {
+        assertEquals(0.0, TencentStockApi.parseAmountYi("NaN"), 0.0)
+        assertEquals(0.0, TencentStockApi.parseAmountYi("Infinity"), 0.0)
+        assertEquals(0.0, TencentStockApi.parseAmountYi("-Infinity"), 0.0)
+    }
+
+    @Test
     fun parseAmountYiOrNull_returnsZeroForTrueZero() {
         val parsed = TencentStockApi.parseAmountYiOrNull("0")
         assertNotNull("true \"0\" must be distinguishable from missing", parsed)

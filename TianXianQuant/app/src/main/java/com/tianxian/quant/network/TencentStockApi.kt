@@ -245,6 +245,7 @@ object TencentStockApi {
         val trimmed = rawAmountWan?.trim()
         if (trimmed.isNullOrEmpty()) return null
         val wan = trimmed.toDoubleOrNull() ?: return null
+        if (!wan.isFinite()) return null
         return wan / 10_000.0
     }
 
