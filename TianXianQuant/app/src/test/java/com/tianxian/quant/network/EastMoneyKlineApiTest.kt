@@ -81,6 +81,27 @@ class EastMoneyKlineApiTest {
     }
 
     @Test
+    fun parseDailyKlines_collapsesSaturatingFiniteVolumeToZero() {
+        // Java/Kotlin Double.toLong() saturates at Long.MAX_VALUE / Long.MIN_VALUE
+        // for any out-of-range finite value, so a literal like "1e30" survives the
+        // isFinite() guard and silently injects a fabricated max-volume into the
+        // DailyKline stream. Mirror the PR #14 quote-provider fix: out-of-range
+        // finite values must also collapse to 0L instead of saturating.
+        val body = "{\"data\":{\"klines\":[" +
+            "\"2026-04-01,101,102,103,100,1e30\"," +
+            "\"2026-04-02,101,102,103,100,-1e30\"," +
+            "\"2026-04-03,101,102,103,100,9223372036854775808\"" +
+            "]}}"
+
+        val rows = EastMoneyKlineApi.parseDailyKlines("600519", body)
+
+        assertEquals(3, rows.size)
+        assertEquals(0L, rows[0].volume)
+        assertEquals(0L, rows[1].volume)
+        assertEquals(0L, rows[2].volume)
+    }
+
+    @Test
     fun parseMovingAverage_excludesRowsWithNonFiniteCloseFromAverages() {
         // 21 rows, one with NaN close. Without the isFinite() guard NaN
         // propagates through .average() and every ma value becomes NaN.
