@@ -103,7 +103,7 @@ object EastMoneyKlineApi {
             val close = fields.getOrNull(2).toFiniteDoubleOrNull() ?: continue
             val high = fields.getOrNull(3).toFiniteDoubleOrNull() ?: continue
             val low = fields.getOrNull(4).toFiniteDoubleOrNull() ?: continue
-            val volume = fields.getOrNull(5).toFiniteDoubleOrNull()?.toLong() ?: 0L
+            val volume = fields.getOrNull(5).toFiniteDoubleOrNull()?.toBoundedVolumeOrZero() ?: 0L
             if (date.length != 10) continue
             result += DailyKline(
                 code = code,
@@ -122,6 +122,9 @@ object EastMoneyKlineApi {
     // them so callers can use `?: continue` / `?: 0L` semantics safely.
     private fun String?.toFiniteDoubleOrNull(): Double? =
         this?.toDoubleOrNull()?.takeIf { it.isFinite() }
+
+    private fun Double.toBoundedVolumeOrZero(): Long =
+        if (this >= 0.0 && this < Long.MAX_VALUE.toDouble()) this.toLong() else 0L
 
     private fun buildUrl(code: String): String {
         val today = LocalDate.now()
