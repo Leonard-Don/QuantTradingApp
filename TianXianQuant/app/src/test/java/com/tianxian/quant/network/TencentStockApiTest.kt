@@ -121,6 +121,87 @@ class TencentStockApiTest {
     }
 
     @Test
+    fun parseStockList_collapsesHugeFiniteVolumeToZero() {
+        // toFiniteDoubleOrNull already rejects NaN/±Infinity, but a finite literal
+        // like "1e30" survives the isFinite() guard. (1e30).toLong() then saturates
+        // to Long.MAX_VALUE (9223372036854775807), and Tencent immediately *100 it,
+        // wrapping into a large negative Long. Bound the conversion BEFORE the *100.
+        val fields = MutableList(48) { "0" }
+        fields[1] = "测试股票"
+        fields[6] = "1e30"
+        val body = "v_sh600519=\"${fields.joinToString("~")}\";"
+
+        val stocks = TencentStockApi.parseStockList(body)
+
+        assertEquals(1, stocks.size)
+        val stock = stocks.first()
+        assertEquals(
+            "1e30 must not saturate-then-overflow into a negative volume",
+            0L,
+            stock.volume
+        )
+        assertTrue(
+            "huge finite volume must collapse to non-negative",
+            stock.volume >= 0L
+        )
+    }
+
+    @Test
+    fun parseStockList_collapsesUnsafeScaledVolumeToZero() {
+        // A value comfortably inside Long range (e.g. 1e17 < Long.MAX_VALUE ≈ 9.22e18)
+        // still detonates Tencent's ×100 scaling: 1e17.toLong() * 100 = 1e19 overflows
+        // Long and wraps to a negative number. The fix must check the scaled magnitude,
+        // not just the raw double.
+        val fields = MutableList(48) { "0" }
+        fields[1] = "测试股票"
+        fields[6] = "1e17"
+        val body = "v_sh600519=\"${fields.joinToString("~")}\";"
+
+        val stocks = TencentStockApi.parseStockList(body)
+
+        assertEquals(1, stocks.size)
+        assertEquals(0L, stocks.first().volume)
+    }
+
+    @Test
+    fun parseStockList_preservesOrdinaryVolumeAfterScaling() {
+        // Regression guard: bounding must not break the legacy ×100 path for
+        // realistic lot counts.
+        val fields = MutableList(48) { "0" }
+        fields[1] = "对照股票"
+        fields[6] = "123"
+        val body = "v_sh600519=\"${fields.joinToString("~")}\";"
+
+        val stocks = TencentStockApi.parseStockList(body)
+
+        assertEquals(1, stocks.size)
+        assertEquals(12300L, stocks.first().volume)
+    }
+
+    @Test
+    fun parseMarketOverview_collapsesHugeFiniteVolumeToZero() {
+        // Index parser does not ×100 but still saturates on (1e30).toLong() →
+        // Long.MAX_VALUE. Bounded conversion must collapse those to 0L while
+        // preserving ordinary values.
+        val hugeFields = MutableList(48) { "0" }
+        hugeFields[1] = "上证指数"
+        hugeFields[6] = "1e30"
+        val ordinaryFields = MutableList(48) { "0" }
+        ordinaryFields[1] = "深证成指"
+        ordinaryFields[6] = "123"
+        val body = buildString {
+            append("v_sh000001=\"${hugeFields.joinToString("~")}\";")
+            append("v_sz399001=\"${ordinaryFields.joinToString("~")}\";")
+        }
+
+        val overviews = TencentStockApi.parseMarketOverview(body)
+
+        assertEquals(2, overviews.size)
+        assertEquals(0L, overviews.first { it.indexCode == "000001" }.volume)
+        assertEquals(123L, overviews.first { it.indexCode == "399001" }.volume)
+    }
+
+    @Test
     fun parseMarketOverview_collapsesNonFiniteNumericFieldsToZero() {
         // Same Double.parseDouble("Infinity") footgun applies to the index parser:
         // price/changePoint/changePercent/volume/amount must reject non-finite
