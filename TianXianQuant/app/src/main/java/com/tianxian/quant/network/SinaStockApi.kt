@@ -135,7 +135,17 @@ object SinaStockApi {
 
     private fun String?.toLongValue(): Long {
         val parsed = this?.trim()?.toDoubleOrNull() ?: return 0L
-        return if (parsed.isFinite()) parsed.toLong() else 0L
+        return parsed.toBoundedLong()
+    }
+
+    // Double.toLong() saturates at Long.MAX_VALUE / Long.MIN_VALUE for any
+    // out-of-range value, so a finite literal like "1e30" silently becomes
+    // a fabricated max-volume. Collapse those to 0L alongside non-finite inputs.
+    private fun Double.toBoundedLong(): Long {
+        if (!this.isFinite()) return 0L
+        if (this >= Long.MAX_VALUE.toDouble()) return 0L
+        if (this <= Long.MIN_VALUE.toDouble()) return 0L
+        return this.toLong()
     }
 
     internal fun parseAmountYi(rawAmountYuan: String?): Double {

@@ -124,6 +124,48 @@ class SinaStockApiTest {
     }
 
     @Test
+    fun parseStockList_collapsesHugeFiniteVolumeToZero() {
+        // Java/Kotlin Double.parseDouble accepts very large but FINITE literals
+        // such as "1e30" -- they slip past an isFinite() guard. Double.toLong()
+        // then saturates to Long.MAX_VALUE (9223372036854775807) for any value
+        // beyond Long range, silently injecting a fabricated max-volume into
+        // StockInfo. Bounded conversion must collapse those to 0L while keeping
+        // ordinary finite volumes intact.
+        val body = """
+            var hq_str_sh600519="测试股票,10,10,10,10,10,10,10,1e30,500000000,2026-04-29,09:57:51,00,";
+            var hq_str_sz000858="对照股票,10,10,10,10,10,10,10,123,500000000,2026-04-29,09:57:51,00";
+        """.trimIndent()
+
+        val stocks = SinaStockApi.parseStockList(body)
+
+        assertEquals(2, stocks.size)
+        val huge = stocks.first { it.code == "600519" }
+        assertEquals(
+            "1e30 must not saturate to Long.MAX_VALUE",
+            0L,
+            huge.volume
+        )
+        val ordinary = stocks.first { it.code == "000858" }
+        assertEquals("ordinary finite volume must round-trip", 123L, ordinary.volume)
+    }
+
+    @Test
+    fun parseMarketOverview_collapsesHugeFiniteVolumeToZero() {
+        // Same saturation footgun applies to the index parser: 1e30 is finite
+        // but its .toLong() returns Long.MAX_VALUE, polluting MarketOverview.volume.
+        val body = """
+            var hq_str_sh000001="上证指数,10,10,10,10,10,0,0,1e30,338007629595,2026-04-29,09:57:50,00,";
+            var hq_str_sz399001="深证成指,10,10,10,10,10,0,0,123,424312399934.441,2026-04-29,09:57:48,00";
+        """.trimIndent()
+
+        val overviews = SinaStockApi.parseMarketOverview(body)
+
+        assertEquals(2, overviews.size)
+        assertEquals(0L, overviews.first { it.indexCode == "000001" }.volume)
+        assertEquals(123L, overviews.first { it.indexCode == "399001" }.volume)
+    }
+
+    @Test
     fun parseMarketOverview_collapsesNonFiniteNumericFieldsToZero() {
         // Same Double.parseDouble("Infinity") footgun applies to the index
         // parser: price/changePoint/changePercent/volume/amount must reject

@@ -118,7 +118,7 @@ object TencentStockApi {
                     name = fields.getOrNull(1) ?: "",
                     price = fields.getOrNull(3).toFiniteDoubleOrNull() ?: 0.0,
                     changePercent = fields.getOrNull(32).toFiniteDoubleOrNull() ?: 0.0,
-                    volume = ((fields.getOrNull(6).toFiniteDoubleOrNull() ?: 0.0).toLong()) * 100,
+                    volume = (fields.getOrNull(6).toFiniteDoubleOrNull() ?: 0.0).toBoundedScaledLong(100L),
                     industry = StockSearchIndex.industryFor(code)
                         ?: IndustryPolicy.infer(code, fields.getOrNull(1).orEmpty()),
                     turnover = parseAmountYi(fields.getOrNull(37)),
@@ -211,7 +211,7 @@ object TencentStockApi {
                     price = fields.getOrNull(3).toFiniteDoubleOrNull() ?: 0.0,
                     changePercent = fields.getOrNull(32).toFiniteDoubleOrNull() ?: 0.0,
                     changePoint = fields.getOrNull(31).toFiniteDoubleOrNull() ?: 0.0,
-                    volume = (fields.getOrNull(6).toFiniteDoubleOrNull() ?: 0.0).toLong(),
+                    volume = (fields.getOrNull(6).toFiniteDoubleOrNull() ?: 0.0).toBoundedScaledLong(),
                     amount = parseAmountYi(fields.getOrNull(37))
                 )
                 markets.add(overview)
@@ -252,6 +252,21 @@ object TencentStockApi {
     private fun String?.toFiniteDoubleOrNull(): Double? {
         val parsed = this?.trim()?.toDoubleOrNull() ?: return null
         return parsed.takeIf { it.isFinite() }
+    }
+
+    // Tencent reports stock volume in lots (1 lot = 100 shares) and indices
+    // directly, so the conversion is Double → Long with an optional pre-scale.
+    // Doing the multiplication on the Double side surfaces overflow as ±Infinity
+    // (caught by isFinite), and bounding against Long.MAX_VALUE / Long.MIN_VALUE
+    // rejects huge-but-finite literals like "1e30" that would otherwise saturate
+    // Double.toLong() to Long.MAX_VALUE — and then wrap negative when multiplied.
+    private fun Double.toBoundedScaledLong(scale: Long = 1L): Long {
+        if (!this.isFinite()) return 0L
+        val scaled = this * scale
+        if (!scaled.isFinite()) return 0L
+        if (scaled >= Long.MAX_VALUE.toDouble()) return 0L
+        if (scaled <= Long.MIN_VALUE.toDouble()) return 0L
+        return scaled.toLong()
     }
 
     private const val SOURCE_NAME = "腾讯公开 quote"
