@@ -100,7 +100,7 @@ object TencentStockApi {
         getQuote(codes)
     }
 
-    private fun parseStockList(response: String): List<StockInfo> {
+    internal fun parseStockList(response: String): List<StockInfo> {
         val stocks = mutableListOf<StockInfo>()
         val matcher = stockPattern.matcher(response)
 
@@ -116,19 +116,19 @@ object TencentStockApi {
                 val stock = StockInfo(
                     code = code,
                     name = fields.getOrNull(1) ?: "",
-                    price = fields.getOrNull(3)?.toDoubleOrNull() ?: 0.0,
-                    changePercent = fields.getOrNull(32)?.toDoubleOrNull() ?: 0.0,
-                    volume = (fields.getOrNull(6)?.toDoubleOrNull() ?: 0.0).toLong() * 100,
+                    price = fields.getOrNull(3).toFiniteDoubleOrNull() ?: 0.0,
+                    changePercent = fields.getOrNull(32).toFiniteDoubleOrNull() ?: 0.0,
+                    volume = ((fields.getOrNull(6).toFiniteDoubleOrNull() ?: 0.0).toLong()) * 100,
                     industry = StockSearchIndex.industryFor(code)
                         ?: IndustryPolicy.infer(code, fields.getOrNull(1).orEmpty()),
                     turnover = parseAmountYi(fields.getOrNull(37)),
-                    high = fields.getOrNull(33)?.toDoubleOrNull() ?: 0.0,
-                    low = fields.getOrNull(34)?.toDoubleOrNull() ?: 0.0,
-                    open = fields.getOrNull(5)?.toDoubleOrNull() ?: 0.0,
-                    yesterdayClose = fields.getOrNull(4)?.toDoubleOrNull() ?: 0.0,
-                    marketCap = fields.getOrNull(45)?.toDoubleOrNull() ?: 0.0,
-                    pe = fields.getOrNull(39)?.toDoubleOrNull() ?: 0.0,
-                    pb = fields.getOrNull(46)?.toDoubleOrNull() ?: 0.0
+                    high = fields.getOrNull(33).toFiniteDoubleOrNull() ?: 0.0,
+                    low = fields.getOrNull(34).toFiniteDoubleOrNull() ?: 0.0,
+                    open = fields.getOrNull(5).toFiniteDoubleOrNull() ?: 0.0,
+                    yesterdayClose = fields.getOrNull(4).toFiniteDoubleOrNull() ?: 0.0,
+                    marketCap = fields.getOrNull(45).toFiniteDoubleOrNull() ?: 0.0,
+                    pe = fields.getOrNull(39).toFiniteDoubleOrNull() ?: 0.0,
+                    pb = fields.getOrNull(46).toFiniteDoubleOrNull() ?: 0.0
                 )
                 stocks.add(stock)
             } catch (ignored: Exception) {
@@ -187,7 +187,7 @@ object TencentStockApi {
         }
     }
 
-    private fun parseMarketOverview(response: String): List<MarketOverview> {
+    internal fun parseMarketOverview(response: String): List<MarketOverview> {
         val markets = mutableListOf<MarketOverview>()
         val matcher = stockPattern.matcher(response)
 
@@ -208,10 +208,10 @@ object TencentStockApi {
                 val overview = MarketOverview(
                     indexCode = code,
                     indexName = indexNames[code] ?: fields.getOrNull(1) ?: "",
-                    price = fields.getOrNull(3)?.toDoubleOrNull() ?: 0.0,
-                    changePercent = fields.getOrNull(32)?.toDoubleOrNull() ?: 0.0,
-                    changePoint = fields.getOrNull(31)?.toDoubleOrNull() ?: 0.0,
-                    volume = (fields.getOrNull(6)?.toDoubleOrNull() ?: 0.0).toLong(),
+                    price = fields.getOrNull(3).toFiniteDoubleOrNull() ?: 0.0,
+                    changePercent = fields.getOrNull(32).toFiniteDoubleOrNull() ?: 0.0,
+                    changePoint = fields.getOrNull(31).toFiniteDoubleOrNull() ?: 0.0,
+                    volume = (fields.getOrNull(6).toFiniteDoubleOrNull() ?: 0.0).toLong(),
                     amount = parseAmountYi(fields.getOrNull(37))
                 )
                 markets.add(overview)
@@ -247,6 +247,11 @@ object TencentStockApi {
         val wan = trimmed.toDoubleOrNull() ?: return null
         if (!wan.isFinite()) return null
         return wan / 10_000.0
+    }
+
+    private fun String?.toFiniteDoubleOrNull(): Double? {
+        val parsed = this?.trim()?.toDoubleOrNull() ?: return null
+        return parsed.takeIf { it.isFinite() }
     }
 
     private const val SOURCE_NAME = "腾讯公开 quote"
