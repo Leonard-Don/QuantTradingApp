@@ -99,11 +99,11 @@ object EastMoneyKlineApi {
         for (index in 0 until rows.length()) {
             val fields = rows.optString(index).split(",")
             val date = fields.getOrNull(0).orEmpty()
-            val open = fields.getOrNull(1)?.toDoubleOrNull() ?: continue
-            val close = fields.getOrNull(2)?.toDoubleOrNull() ?: continue
-            val high = fields.getOrNull(3)?.toDoubleOrNull() ?: continue
-            val low = fields.getOrNull(4)?.toDoubleOrNull() ?: continue
-            val volume = fields.getOrNull(5)?.toDoubleOrNull()?.toLong() ?: 0L
+            val open = fields.getOrNull(1).toFiniteDoubleOrNull() ?: continue
+            val close = fields.getOrNull(2).toFiniteDoubleOrNull() ?: continue
+            val high = fields.getOrNull(3).toFiniteDoubleOrNull() ?: continue
+            val low = fields.getOrNull(4).toFiniteDoubleOrNull() ?: continue
+            val volume = fields.getOrNull(5).toFiniteDoubleOrNull()?.toLong() ?: 0L
             if (date.length != 10) continue
             result += DailyKline(
                 code = code,
@@ -117,6 +117,11 @@ object EastMoneyKlineApi {
         }
         return result.sortedBy { it.date }
     }
+
+    // Double.parseDouble accepts "NaN"/"Infinity"/"-Infinity"; isFinite filters
+    // them so callers can use `?: continue` / `?: 0L` semantics safely.
+    private fun String?.toFiniteDoubleOrNull(): Double? =
+        this?.toDoubleOrNull()?.takeIf { it.isFinite() }
 
     private fun buildUrl(code: String): String {
         val today = LocalDate.now()
