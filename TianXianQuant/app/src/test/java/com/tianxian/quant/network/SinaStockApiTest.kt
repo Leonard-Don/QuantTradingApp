@@ -91,4 +91,63 @@ class SinaStockApiTest {
         assertEquals("上证指数", indices.first().indexName)
         assertEquals(4082.2266, indices.first().price, 0.0001)
     }
+
+    @Test
+    fun parseStockList_collapsesNonFiniteNumericFieldsToZero() {
+        // Java/Kotlin Double.parseDouble accepts "NaN"/"Infinity"/"-Infinity",
+        // so a raw "Infinity" survives toDoubleOrNull() and bleeds into price /
+        // open / high / low / yesterdayClose. Volume is worse: Infinity.toLong()
+        // returns Long.MAX_VALUE. changePercent is computed from price &
+        // yesterdayClose so a non-finite price would propagate NaN downstream.
+        // All must collapse to 0.0 / 0L the same way blank fields already do.
+        val body = """
+            var hq_str_sh600519="测试股票,NaN,Infinity,-Infinity,NaN,Infinity,0,0,Infinity,NaN,2026-04-29,09:57:51,00,";
+        """.trimIndent()
+
+        val stocks = SinaStockApi.parseStockList(body)
+
+        assertEquals(1, stocks.size)
+        val stock = stocks.first()
+        assertEquals(0.0, stock.price, 0.0)
+        assertEquals(0.0, stock.open, 0.0)
+        assertEquals(0.0, stock.high, 0.0)
+        assertEquals(0.0, stock.low, 0.0)
+        assertEquals(0.0, stock.yesterdayClose, 0.0)
+        assertTrue(
+            "changePercent must be finite, was ${stock.changePercent}",
+            stock.changePercent.isFinite()
+        )
+        assertEquals(0.0, stock.changePercent, 0.0)
+        // Infinity.toLong() == Long.MAX_VALUE; must collapse to 0L.
+        assertEquals(0L, stock.volume)
+        assertEquals(0.0, stock.turnover, 0.0)
+    }
+
+    @Test
+    fun parseMarketOverview_collapsesNonFiniteNumericFieldsToZero() {
+        // Same Double.parseDouble("Infinity") footgun applies to the index
+        // parser: price/changePoint/changePercent/volume/amount must reject
+        // non-finite doubles instead of letting them bleed into MarketOverview.
+        val body = """
+            var hq_str_sh000001="上证指数,NaN,Infinity,-Infinity,NaN,Infinity,0,0,Infinity,NaN,2026-04-29,09:57:50,00,";
+        """.trimIndent()
+
+        val overviews = SinaStockApi.parseMarketOverview(body)
+
+        assertEquals(1, overviews.size)
+        val overview = overviews.first()
+        assertEquals(0.0, overview.price, 0.0)
+        assertTrue(
+            "changePoint must be finite, was ${overview.changePoint}",
+            overview.changePoint.isFinite()
+        )
+        assertEquals(0.0, overview.changePoint, 0.0)
+        assertTrue(
+            "changePercent must be finite, was ${overview.changePercent}",
+            overview.changePercent.isFinite()
+        )
+        assertEquals(0.0, overview.changePercent, 0.0)
+        assertEquals(0L, overview.volume)
+        assertEquals(0.0, overview.amount, 0.0)
+    }
 }

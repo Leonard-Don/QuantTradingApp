@@ -128,9 +128,15 @@ object SinaStockApi {
         }
     }
 
-    private fun String?.toDoubleValue(): Double = this?.trim()?.toDoubleOrNull() ?: 0.0
+    private fun String?.toDoubleValue(): Double {
+        val parsed = this?.trim()?.toDoubleOrNull() ?: return 0.0
+        return if (parsed.isFinite()) parsed else 0.0
+    }
 
-    private fun String?.toLongValue(): Long = this?.trim()?.toDoubleOrNull()?.toLong() ?: 0L
+    private fun String?.toLongValue(): Long {
+        val parsed = this?.trim()?.toDoubleOrNull() ?: return 0L
+        return if (parsed.isFinite()) parsed.toLong() else 0L
+    }
 
     internal fun parseAmountYi(rawAmountYuan: String?): Double {
         return parseAmountYiOrNull(rawAmountYuan) ?: 0.0
