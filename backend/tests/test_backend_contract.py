@@ -4,7 +4,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.main import GRACE_MILLIS, create_app
 
 
 def auth_headers(token: str) -> dict[str, str]:
@@ -499,6 +499,60 @@ def test_rate_limit_returns_429_after_burst(tmp_path):
 
     assert statuses[-1] == 429
     assert statuses.count(429) >= 1
+
+
+def test_grace_until_is_zero_for_never_paid_user_and_extends_after_payment(tmp_path):
+    # backend/app/main.py:418 computes
+    #   graceUntil = latest_expiry + GRACE_MILLIS if latest_expiry > 0 else 0
+    # The `else 0` branch is load-bearing: a naive simplification to
+    # `latest_expiry + GRACE_MILLIS` or `(latest_expiry or 0) + GRACE_MILLIS`
+    # would silently give never-paid users a 7-day grace window. The Android
+    # client honors graceUntil as a valid cached-entitlement fallback during
+    # offline use, so a non-zero grace for a never-paid user would let them
+    # bypass the paywall until the cache expired. Existing initial-entitlement
+    # tests only assert the two expiry fields; this locks the explicit-zero
+    # invariant for graceUntil and the +GRACE_MILLIS extension after payment.
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+
+    initial = client.get(
+        "/v1/me/entitlements",
+        headers=auth_headers(auth["accessToken"]),
+    )
+    assert initial.status_code == 200
+    initial_body = initial.json()
+    assert initial_body["stockVipExpireTime"] == 0
+    assert initial_body["quantVipExpireTime"] == 0
+    assert initial_body["graceUntil"] == 0, (
+        "graceUntil must be explicit 0 for a never-paid user, not GRACE_MILLIS; "
+        f"got {initial_body['graceUntil']}"
+    )
+
+    order = create_order(client, auth["accessToken"], "client-order-grace")
+    paid = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-grace",
+            "amountCents": order["amountCents"],
+        },
+    )
+    assert paid.status_code == 200
+
+    after = client.get(
+        "/v1/me/entitlements",
+        headers=auth_headers(auth["accessToken"]),
+    )
+    assert after.status_code == 200
+    after_body = after.json()
+    expected_latest = max(
+        after_body["stockVipExpireTime"], after_body["quantVipExpireTime"]
+    )
+    assert expected_latest > 0
+    assert after_body["graceUntil"] == expected_latest + GRACE_MILLIS, (
+        "graceUntil after payment must equal max(stock, quant) + GRACE_MILLIS; "
+        f"got grace={after_body['graceUntil']}, latest={expected_latest}"
+    )
 
 
 def test_callback_rejects_amount_mismatch(tmp_path):
