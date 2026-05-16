@@ -225,4 +225,58 @@ class TencentStockApiTest {
         assertEquals(0L, overview.volume)
         assertEquals(0.0, overview.amount, 0.0)
     }
+
+    @Test
+    fun parseMovingAverage_excludesRowsWithNonFiniteCloseFromAverages() {
+        // Tencent kline rows reach parseMovingAverage as JSON arrays whose close
+        // value is read via optString(2).toDoubleOrNull(). Java/Kotlin
+        // Double.parseDouble accepts "NaN"/"Infinity"/"-Infinity", so a single
+        // poisoned row slips past `?: continue` and propagates through
+        // .average() into MovingAverageInfo as NaN — corrupting screening and
+        // provider-health surfaces. Mirrors the EastMoney fix (#12). A NaN row
+        // near the tail also poisons closes.last() (the `close` field).
+        val rows = (1..21).joinToString(",") { index ->
+            val day = index.toString().padStart(2, '0')
+            val close = if (index == 10) "NaN" else (100 + index).toString()
+            "[\"2026-04-$day\",\"100\",\"$close\",\"100\",\"100\",\"1000\"]"
+        }
+        val body = "{\"data\":{\"sh600519\":{\"qfqday\":[$rows]}}}"
+
+        val average = TencentStockApi.parseMovingAverage("sh600519", "600519", body)
+
+        assertNotNull(average)
+        checkNotNull(average)
+        assertTrue("close must be finite, was ${average.close}", average.close.isFinite())
+        assertTrue("ma5 must be finite, was ${average.ma5}", average.ma5.isFinite())
+        assertTrue("ma10 must be finite, was ${average.ma10}", average.ma10.isFinite())
+        assertTrue("ma20 must be finite, was ${average.ma20}", average.ma20.isFinite())
+    }
+
+    @Test
+    fun parseMovingAverage_excludesRowsWithInfinityCloseFromAverages() {
+        // Companion to the NaN case: Infinity/-Infinity must also be rejected,
+        // since Double.parseDouble accepts both. With the bug, ma20 inherits
+        // Infinity from row 5 and closes.last() inherits -Infinity from row 22.
+        // 22 rows leave exactly 20 valid closes after skipping the two poisoned
+        // rows, so we cross the `closes.size < 20` floor either way.
+        val rows = (1..22).joinToString(",") { index ->
+            val day = index.toString().padStart(2, '0')
+            val close = when (index) {
+                5 -> "Infinity"
+                22 -> "-Infinity"
+                else -> (100 + index).toString()
+            }
+            "[\"2026-04-$day\",\"100\",\"$close\",\"100\",\"100\",\"1000\"]"
+        }
+        val body = "{\"data\":{\"sh600519\":{\"qfqday\":[$rows]}}}"
+
+        val average = TencentStockApi.parseMovingAverage("sh600519", "600519", body)
+
+        assertNotNull(average)
+        checkNotNull(average)
+        assertTrue("close must be finite, was ${average.close}", average.close.isFinite())
+        assertTrue("ma5 must be finite, was ${average.ma5}", average.ma5.isFinite())
+        assertTrue("ma10 must be finite, was ${average.ma10}", average.ma10.isFinite())
+        assertTrue("ma20 must be finite, was ${average.ma20}", average.ma20.isFinite())
+    }
 }
