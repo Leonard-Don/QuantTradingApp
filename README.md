@@ -114,17 +114,43 @@ TianXianQuant/
 2. 同步 Gradle
 3. 运行到模拟器或真机
 
-## 当前工程状态
+## 项目状态
 
-- 已接入多源行情：腾讯公开 quote 作为主源，新浪 quote 作为股票/指数备用源，东方财富 K 线作为均线备用源；实时源不可用时优先展示最近本机行情缓存，并明确标注缓存时间。
-- 量化回测已使用东方财富日线样本、可选标的代码和日期区间，按收盘价信号、全仓进出和单边成本估算历史指标，不再用静态演示指标冒充回测。
-- 复盘页已增加市场温度模型，基于当前行情池样本计算宽度、成交额方向、板块扩散、自选池一致性、指数联动、行情来源/覆盖率诊断、重点样本、风险项和研究动作；市场温度和数据质量摘要会写入本机历史快照，用于展示最近趋势和上一快照对比，并同步进入每日研究简报与研究计划。所有结论保持研究参考口径，不输出买卖指令。
-- Android 端登录、社区、VIP 到期时间默认保留本机 Room 演示状态；账号页提供手动权益同步、账号删除、隐私/协议和内测支持说明；构建时可通过 `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/` 开启后端账号、访问令牌刷新、权益、账号删除和 Debug 沙盒订单同步。
-- QA 后端联调构建可通过 `-PtianxianRequireBackendPaymentSync=true` 要求 VIP 开通必须由服务端订单/回调/权益链路完成，后端失败时不会回退本机演示权益。
-- VIP 页展示最近订阅订单状态；Android 本机缓存订单状态、金额、渠道、权益快照和来源，后端提供 `GET /v1/me/orders` 用于刷新服务端订单历史。
-- 仓库已包含本地 FastAPI 后端骨架，用于账号、订单、权益、支付回调和高级数据代理接入。
-- Debug 可本地模拟支付开通；Release 中 `ALLOW_LOCAL_PAYMENT_SIMULATION=false`，不会直接开通 VIP。
-- Release 已开启 R8 混淆与资源压缩；正式付费/商店发布前需通过 `verifyPaidReleaseConfig` 闸门，确认生产 API、强制服务端权益、签名、隐私政策、用户协议、数据免责声明和客服邮箱均已配置。
+**v1.0.0 代码侧收口** (2026-05-16) — feature development frozen on the codebase side.
+
+天线量化的代码已经到达"等待上架"的稳定状态：所有功能模块、合规约束、付费闸门、签名管道、QA 验证脚本都已完成，剩下的事情**都是运营 / Ops 工作，不再需要写代码**。
+
+### 代码侧已完成（不再迭代）
+
+- **多源行情接入**：腾讯主源 + 新浪 / 东方财富备源，缓存降级展示明确标注时效。所有 quote provider 经 PR #5–#16 完成 non-finite 值清洗
+- **量化回测**：东方财富日线样本，按收盘价信号、全仓进出、单边成本估算历史指标，研究参考口径
+- **复盘页市场温度模型**：宽度 / 成交额方向 / 板块扩散 / 自选池一致性 / 指数联动 / 风险项 / 研究动作；历史快照对比 + 每日研究简报联动
+- **后端契约**：FastAPI + SQLite (Postgres-ready)，覆盖 auth / token refresh / entitlements / order status / refunds / payment callbacks (HMAC-SHA256) / admin audit / 高级数据代理占位
+- **付费闸门**：`scripts/verify_paid_release_config.sh` 检查生产 API + 强制服务端权益 + 签名 + 法律 URL + 客服邮箱；未配置外部资源时主动失败
+- **签名管道**：通过 `release.env` 外部注入 keystore；`*.jks` 已加 `.gitignore`，本地秘密文件不会被提交
+- **R8 混淆 + 资源压缩**：release 构建已开启；`ALLOW_LOCAL_PAYMENT_SIMULATION=false` 在 release 中强制
+- **合规姿态守住**：grep 验证仓库 zero 个 broker SDK / trading entry / order-placement 接口（详见"合规红线"段）
+- **完整 PIPL-compliant 法律文档**：[docs/legal/PRIVACY_POLICY.md](docs/legal/PRIVACY_POLICY.md)、[docs/legal/TERMS_OF_SERVICE.md](docs/legal/TERMS_OF_SERVICE.md)、[docs/legal/DATA_SOURCE_DISCLAIMER.md](docs/legal/DATA_SOURCE_DISCLAIMER.md)
+- **GitHub Pages 自动渲染**：`.github/workflows/legal-docs-pages.yml` ready，启用 GitHub Pages 即生效
+- **发布运营文档完整**：[docs/RELEASE_USER_CHECKLIST.md](docs/RELEASE_USER_CHECKLIST.md) 10 步、[docs/RELEASE_BLOCKERS.md](docs/RELEASE_BLOCKERS.md) 实测 gate 输出、[docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md) keystore 配方
+
+### 代码侧不再接受新功能
+
+后续维护策略：
+- 仅接受 **blocking bug** / 数据源结构变化（腾讯 / 新浪 / 东方财富 schema drift）/ 安全问题修复
+- 不再向 Android / Backend 添加新模块、新页面、新策略
+- 测试与构建回归（`scripts/verify_all.sh` + `:app:verifyPaidReleaseConfig`）是收口验证基线
+
+### 你（运营方）要做的事情都在 RELEASE_USER_CHECKLIST.md
+
+剩下的 4 类工作**全部需要你的判断或秘密**，**不需要碰代码**：
+
+1. **填法律文档占位符** — 3 份 `docs/legal/*.md` 里的 `【上架前由运营方填写】`（运营主体、地址、support 邮箱）
+2. **启用 GitHub Pages** — Settings → Pages → Source = GitHub Actions，触发 `legal-docs-pages.yml` 工作流
+3. **生成签名 keystore** — `keytool -genkeypair -v -keystore ~/Library/Application\ Support/tianxian/release.jks ...`，填 `release.env`
+4. **部署后端到 Render** + 接入 WeChat/Alipay / Play Billing 商户 sandbox
+
+详细步骤见 [docs/RELEASE_USER_CHECKLIST.md](docs/RELEASE_USER_CHECKLIST.md)（10 个有序步骤 + 完整的命令模板）。
 
 ## 本地验证
 
@@ -171,17 +197,22 @@ scripts/verify_paid_release_config.sh
 - `docs/RELEASE_CHECKLIST.md`：内部包、商店测试、付费上线检查表。
 - `docs/RELEASE_SIGNING.md`：Release 签名、外部密钥和候选包配置说明。
 - `docs/RELEASE_CANDIDATE_SUMMARY.md`：当前本地候选状态、已完成项和外部阻塞项。
-- `docs/PRIVACY_POLICY_DRAFT.md` / `docs/TERMS_OF_SERVICE_DRAFT.md`：隐私政策和用户协议草案。
+- `docs/legal/PRIVACY_POLICY.md` / `docs/legal/TERMS_OF_SERVICE.md` / `docs/legal/DATA_SOURCE_DISCLAIMER.md`：PIPL-compliant 正式法律文档（运营方上架前填占位符即可）。
 - `docs/STORE_LISTING_DRAFT.md`：商店短描述、长描述、截图计划、通知权限和数据源免责声明草案。
 - `docs/MANUAL_QA_MATRIX.md`：真机/人工 QA 矩阵。
 - `store_assets/`：由 `scripts/generate_store_assets.py` 生成的商店展示图和素材说明。
 - `.github/workflows/android-p0.yml`：GitHub Actions P0 工程检查。
 - `backend/Dockerfile` / `render.yaml`：后端容器化与 Render Blueprint 部署模板。
 
-## 下一步开发
+## 运营方上架步骤（不需要写代码）
 
-1. 用 `render.yaml` 或等价平台部署 `backend/`，设置持久化数据库和 `TIANXIAN_PAYMENT_CALLBACK_SECRET`。
-2. 接入正式微信/支付宝或 Google Play Billing 商户配置，替换 sandbox 回调。
-3. 发布隐私政策、用户协议、数据免责声明 URL，并用 `scripts/verify_paid_release_config.sh` 做发布闸门。
-4. 按 `docs/MANUAL_QA_MATRIX.md` 完成真机人工 QA。
-5. 签约授权数据源后，把 `backend/` 高级数据代理从 `not_configured` 切换为真实供应商响应。
+详细 10 步流程见 [docs/RELEASE_USER_CHECKLIST.md](docs/RELEASE_USER_CHECKLIST.md)，包括：
+
+1. 用 `render.yaml` 或等价平台部署 `backend/`，设置持久化数据库和 `TIANXIAN_PAYMENT_CALLBACK_SECRET`
+2. 接入正式微信/支付宝或 Google Play Billing 商户配置，替换 sandbox 回调
+3. 在 GitHub Pages 启用后填法律文档占位符，发布 privacy / terms / disclaimer URL
+4. 在 Settings → Secrets 配 keystore base64 + 4 个 release env，触发 `scripts/build_release_artifacts.sh`
+5. 按 `docs/MANUAL_QA_MATRIX.md` 完成真机人工 QA
+6. 签约授权数据源后，把 `backend/` 高级数据代理从 `not_configured` 切换为真实供应商响应
+
+这些都是**外部资源接入工作**，代码侧已经为每一步准备好了入口和闸门。
