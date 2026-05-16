@@ -154,7 +154,7 @@ object TencentStockApi {
         }
     }
 
-    private fun parseMovingAverage(marketCode: String, code: String, body: String): MovingAverageInfo? {
+    internal fun parseMovingAverage(marketCode: String, code: String, body: String): MovingAverageInfo? {
         val data = JSONObject(body).optJSONObject("data") ?: return null
         val stockData = data.optJSONObject(marketCode) ?: return null
         val rows = stockData.optJSONArray("qfqday")
@@ -164,7 +164,12 @@ object TencentStockApi {
         val closes = mutableListOf<Double>()
         for (index in 0 until rows.length()) {
             val row = rows.optJSONArray(index) ?: continue
-            val close = row.optString(2).toDoubleOrNull() ?: continue
+            // Double.parseDouble accepts "NaN"/"Infinity"/"-Infinity"; without
+            // an isFinite() guard they slip past `?: continue` and propagate
+            // through .average() into MovingAverageInfo as NaN/±Infinity,
+            // corrupting downstream screening and provider-health surfaces.
+            // Mirrors EastMoneyKlineApi.parseDailyKlines (PR #12).
+            val close = row.optString(2).toFiniteDoubleOrNull() ?: continue
             closes.add(close)
         }
         if (closes.size < 20) return null
