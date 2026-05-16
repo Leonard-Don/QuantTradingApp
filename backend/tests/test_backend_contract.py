@@ -581,3 +581,69 @@ def test_callback_rejects_amount_mismatch(tmp_path):
     )
     assert paid.status_code == 400
     assert paid.json()["detail"] == "payment amount mismatch"
+
+
+def test_create_order_enforces_same_device_id_bounds_as_auth_requests(tmp_path):
+    # RegisterRequest, LoginRequest, and RefreshRequest all bound deviceId to
+    # min_length=3, max_length=128 (backend/app/main.py:155,161,166). The DB
+    # column ``device_id TEXT NOT NULL`` enforces non-null only, so the
+    # Pydantic constraint is the sole length gate between the JSON body and
+    # the SQLite INSERT. OrderRequest must use the same bounds: a device that
+    # was rejected at /v1/auth/register would otherwise still be able to
+    # create orders, persisting a deviceId in the orders table whose shape
+    # the auth tables would refuse. Lock both ends of the range so a future
+    # refactor that drops the constraint - or relaxes only one side - fails
+    # loudly instead of silently widening the contract.
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+
+    short = client.post(
+        "/v1/orders",
+        headers=auth_headers(auth["accessToken"]),
+        json={
+            "tier": "STOCK",
+            "durationDays": 31,
+            "channel": "WECHAT",
+            "clientOrderId": "client-order-device-short",
+            "deviceId": "ab",
+        },
+    )
+    assert short.status_code == 422, (
+        "OrderRequest.deviceId must reject a 2-character value the way "
+        "RegisterRequest/LoginRequest/RefreshRequest do; "
+        f"got status={short.status_code}, body={short.text!r}"
+    )
+
+    too_long = client.post(
+        "/v1/orders",
+        headers=auth_headers(auth["accessToken"]),
+        json={
+            "tier": "STOCK",
+            "durationDays": 31,
+            "channel": "WECHAT",
+            "clientOrderId": "client-order-device-long",
+            "deviceId": "d" * 129,
+        },
+    )
+    assert too_long.status_code == 422, (
+        "OrderRequest.deviceId must reject a value above max_length=128 the "
+        "way RegisterRequest/LoginRequest/RefreshRequest do; "
+        f"got status={too_long.status_code}, body={too_long.text!r}"
+    )
+
+    boundary = client.post(
+        "/v1/orders",
+        headers=auth_headers(auth["accessToken"]),
+        json={
+            "tier": "STOCK",
+            "durationDays": 31,
+            "channel": "WECHAT",
+            "clientOrderId": "client-order-device-boundary",
+            "deviceId": "abc",
+        },
+    )
+    assert boundary.status_code == 200, (
+        "OrderRequest.deviceId must still accept a 3-character value at the "
+        "min_length boundary; "
+        f"got status={boundary.status_code}, body={boundary.text!r}"
+    )

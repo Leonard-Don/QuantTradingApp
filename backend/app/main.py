@@ -187,7 +187,7 @@ class OrderRequest(BaseModel):
     durationDays: int = Field(gt=0, le=370)
     channel: str = Field(pattern="^(WECHAT|ALIPAY)$")
     clientOrderId: str
-    deviceId: str
+    deviceId: str = Field(min_length=3, max_length=128)
 
 
 class PaymentPayload(BaseModel):
