@@ -48,4 +48,11 @@ class QuantFormulaPolicyTest {
 
         assertTrue(reason.contains("@"))
     }
+
+    @Test
+    fun explainsFullWidthPunctuationWithRejectedCharacter() {
+        val reason = QuantFormulaPolicy.rejectionReason("close ＞ ma20")!!
+
+        assertTrue(reason.contains("＞"))
+    }
 }

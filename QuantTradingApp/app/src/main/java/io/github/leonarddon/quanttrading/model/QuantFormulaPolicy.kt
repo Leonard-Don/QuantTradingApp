@@ -32,6 +32,8 @@ object QuantFormulaPolicy {
         val rejected = formula.firstOrNull { !isSupportedCharacter(it) }
         return if (rejected != null && rejected.code < 128) {
             "公式包含非法字符 '$rejected'。"
+        } else if (rejected != null && !rejected.isLetterOrDigit() && !rejected.isWhitespace()) {
+            "公式包含不支持的符号 '$rejected'，请改用英文半角运算符。"
         } else {
             SUPPORTED_CHARACTER_MESSAGE
         }
