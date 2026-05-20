@@ -7,10 +7,10 @@ OUTPUT_DIR="${1:-$ROOT_DIR/store_assets/screenshots}"
 mkdir -p "$OUTPUT_DIR"
 
 echo "Capturing store screenshots into: $OUTPUT_DIR"
-EMULATOR_HEADLESS="${EMULATOR_HEADLESS:-0}" EMULATOR_GPU="${EMULATOR_GPU:-host}" SCREENSHOT_DIR="$OUTPUT_DIR" "$ROOT_DIR/TianXianQuant/scripts/verify_emulator_smoke.sh"
+EMULATOR_HEADLESS="${EMULATOR_HEADLESS:-0}" EMULATOR_GPU="${EMULATOR_GPU:-host}" SCREENSHOT_DIR="$OUTPUT_DIR" "$ROOT_DIR/QuantTradingApp/scripts/verify_emulator_smoke.sh"
 
 cat > "$OUTPUT_DIR/README.md" <<'EOF'
-# TianXianQuant Store Screenshots
+# QuantTradingApp Store Screenshots
 
 Run `scripts/capture_store_screenshots.sh` to capture screenshots from the emulator smoke path.
 

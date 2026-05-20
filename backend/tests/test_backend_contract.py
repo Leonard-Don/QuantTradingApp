@@ -254,7 +254,7 @@ def test_order_list_tracks_pending_paid_and_cancelled_statuses(tmp_path):
 
 
 def test_admin_audit_is_disabled_without_configured_token(tmp_path, monkeypatch):
-    monkeypatch.delenv("TIANXIAN_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("QUANTTRADING_ADMIN_TOKEN", raising=False)
     client = TestClient(create_app(str(tmp_path / "test.db")))
 
     response = client.get("/v1/admin/audit", headers={"X-Admin-Token": "admin-secret"})
@@ -264,7 +264,7 @@ def test_admin_audit_is_disabled_without_configured_token(tmp_path, monkeypatch)
 
 
 def test_admin_audit_rejects_invalid_token(tmp_path, monkeypatch):
-    monkeypatch.setenv("TIANXIAN_ADMIN_TOKEN", "admin-secret")
+    monkeypatch.setenv("QUANTTRADING_ADMIN_TOKEN", "admin-secret")
     client = TestClient(create_app(str(tmp_path / "test.db")))
 
     response = client.get("/v1/admin/audit", headers={"X-Admin-Token": "wrong-token"})
@@ -274,7 +274,7 @@ def test_admin_audit_rejects_invalid_token(tmp_path, monkeypatch):
 
 
 def test_admin_audit_returns_read_only_snapshot_and_html_page(tmp_path, monkeypatch):
-    monkeypatch.setenv("TIANXIAN_ADMIN_TOKEN", "admin-secret")
+    monkeypatch.setenv("QUANTTRADING_ADMIN_TOKEN", "admin-secret")
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-admin")
@@ -302,7 +302,7 @@ def test_admin_audit_returns_read_only_snapshot_and_html_page(tmp_path, monkeypa
 
     html = client.get("/admin?token=admin-secret")
     assert html.status_code == 200
-    assert "TianXianQuant Admin Audit" in html.text
+    assert "QuantTradingApp Admin Audit" in html.text
     assert order["orderId"] in html.text
     assert "provider-tx-admin" in html.text
     assert "13800000000" in html.text
@@ -340,8 +340,8 @@ def test_market_proxy_requires_vip_and_returns_not_configured_contract(tmp_path)
 
 
 def test_payment_callback_signature_can_be_required(tmp_path, monkeypatch):
-    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
-    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "1")
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-signature")
@@ -377,8 +377,8 @@ def test_payment_callback_signature_can_be_required(tmp_path, monkeypatch):
 
 
 def test_payment_callback_rejects_missing_timestamp_when_signed(tmp_path, monkeypatch):
-    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
-    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "1")
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-no-ts")
@@ -399,8 +399,8 @@ def test_payment_callback_rejects_missing_timestamp_when_signed(tmp_path, monkey
 
 
 def test_payment_callback_rejects_replayed_old_timestamp(tmp_path, monkeypatch):
-    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
-    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "1")
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-replay")
@@ -426,9 +426,9 @@ def test_payment_callback_rejects_replayed_old_timestamp(tmp_path, monkeypatch):
 
 
 def test_payment_callback_failure_is_recorded_in_audit(tmp_path, monkeypatch):
-    monkeypatch.setenv("TIANXIAN_ADMIN_TOKEN", "admin-secret")
-    monkeypatch.setenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "secret")
-    monkeypatch.setenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "1")
+    monkeypatch.setenv("QUANTTRADING_ADMIN_TOKEN", "admin-secret")
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", "secret")
+    monkeypatch.setenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "1")
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-audit")

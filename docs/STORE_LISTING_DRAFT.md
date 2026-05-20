@@ -1,10 +1,10 @@
-# TianXianQuant Store Listing Draft
+# QuantTradingApp Store Listing Draft
 
 Last reviewed: 2026-05-02
 
 ## App Name
 
-天线量化
+Quant 交易台
 
 ## Short Description
 
@@ -12,7 +12,7 @@ Last reviewed: 2026-05-02
 
 ## Full Description
 
-天线量化是一款面向个人研究者的股票复盘与量化研究工具。应用提供行情样本观察、自选池管理、市场复盘、社区研究记录、策略模型和历史 K 线模拟回测，帮助用户整理研究流程、记录假设、复查风险。
+Quant 交易台是一款面向个人研究者的股票复盘与量化研究工具。应用提供行情样本观察、自选池管理、市场复盘、社区研究记录、策略模型和历史 K 线模拟回测，帮助用户整理研究流程、记录假设、复查风险。
 
 核心功能：
 
@@ -71,9 +71,9 @@ Outputs:
 
 ## Production URLs To Configure
 
-- Privacy policy URL: `TIANXIAN_PRIVACY_POLICY_URL`
-- Terms URL: `TIANXIAN_TERMS_URL`
-- Data disclaimer URL: `TIANXIAN_DATA_DISCLAIMER_URL`
-- Support email: `TIANXIAN_SUPPORT_EMAIL`
+- Privacy policy URL: `QUANTTRADING_PRIVACY_POLICY_URL`
+- Terms URL: `QUANTTRADING_TERMS_URL`
+- Data disclaimer URL: `QUANTTRADING_DATA_DISCLAIMER_URL`
+- Support email: `QUANTTRADING_SUPPORT_EMAIL`
 
 Run `scripts/verify_paid_release_config.sh` before a paid/store release. The gate intentionally fails until these values and the production API are configured.

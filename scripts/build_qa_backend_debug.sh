@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-API_BASE_URL="${TIANXIAN_API_BASE_URL:-http://10.0.2.2:8080/}"
+API_BASE_URL="${QUANTTRADING_API_BASE_URL:-http://10.0.2.2:8080/}"
 
-cd "$ROOT_DIR/TianXianQuant"
+cd "$ROOT_DIR/QuantTradingApp"
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
   HOMEBREW_JDK="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
@@ -21,7 +21,7 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
 fi
 
 ./gradlew :app:assembleDebug \
-  -PtianxianBackendSyncEnabled=true \
-  -PtianxianRequireBackendPaymentSync=true \
-  -PtianxianApiBaseUrl="$API_BASE_URL" \
+  -PquanttradingBackendSyncEnabled=true \
+  -PquanttradingRequireBackendPaymentSync=true \
+  -PquanttradingApiBaseUrl="$API_BASE_URL" \
   --console=plain

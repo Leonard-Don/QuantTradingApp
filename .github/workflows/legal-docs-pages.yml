@@ -59,8 +59,8 @@ jobs:
 
           # Simple index page so /legal/ is browseable.
           {
-            echo '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TianXianQuant Legal</title><link rel="stylesheet" href="_style.css"></head><body>'
-            echo '<h1>TianXianQuant 法律文档</h1>'
+            echo '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QuantTradingApp Legal</title><link rel="stylesheet" href="_style.css"></head><body>'
+            echo '<h1>QuantTradingApp 法律文档</h1>'
             echo '<ul>'
             for src in docs/legal/*.md; do
               base="$(basename "$src" .md)"
@@ -73,7 +73,7 @@ jobs:
 
           # Root index simply redirects to /legal/.
           cat > _site/index.html <<'HTML'
-          <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=legal/"><title>TianXianQuant</title></head><body><p><a href="legal/">TianXianQuant 法律文档</a></p></body></html>
+          <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=legal/"><title>QuantTradingApp</title></head><body><p><a href="legal/">QuantTradingApp 法律文档</a></p></body></html>
           HTML
 
       - name: Upload Pages artifact

@@ -1,4 +1,4 @@
-# TianXianQuant Store Screenshots
+# QuantTradingApp Store Screenshots
 
 Run `scripts/capture_store_screenshots.sh` to capture screenshots from the emulator smoke path.
 

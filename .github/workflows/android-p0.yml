@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    name: Verify TianXianQuant
+    name: Verify QuantTradingApp
     runs-on: ubuntu-latest
 
     steps:
@@ -32,15 +32,15 @@ jobs:
           python -m pip install -r backend/requirements.txt
 
       - name: Verify P0
-        run: TianXianQuant/scripts/verify_p0.sh
+        run: QuantTradingApp/scripts/verify_p0.sh
 
       - name: Build demo APK
         run: |
-          cd TianXianQuant
+          cd QuantTradingApp
           ./gradlew :app:assembleDemo --console=plain
 
       - name: Verify backend contract scaffold
         run: scripts/verify_backend.sh
 
       - name: Build release APK and AAB
-        run: TianXianQuant/scripts/build_release_artifacts.sh
+        run: QuantTradingApp/scripts/build_release_artifacts.sh

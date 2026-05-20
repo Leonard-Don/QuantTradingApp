@@ -1,17 +1,17 @@
-# TianXianQuant Commercialization Gap
+# QuantTradingApp Commercialization Gap
 
 Last reviewed: 2026-05-02
 
 ## Current Status
 
-TianXianQuant is ready for local MVP demos and internal Android testing. It is not ready for real paid subscriptions until account, payment, entitlement, and data-provider responsibilities move out of the local app boundary.
+QuantTradingApp is ready for local MVP demos and internal Android testing. It is not ready for real paid subscriptions until account, payment, entitlement, and data-provider responsibilities move out of the local app boundary.
 
 ## Go / No-Go
 
 | Area | Status | Decision |
 | --- | --- | --- |
-| Android build, lint, debug/release APK | Passing through `TianXianQuant/scripts/verify_p0.sh` | Go for internal testing |
-| Emulator smoke flow | Passing through `TianXianQuant/scripts/verify_emulator_smoke.sh` | Go for internal testing |
+| Android build, lint, debug/release APK | Passing through `QuantTradingApp/scripts/verify_p0.sh` | Go for internal testing |
+| Emulator smoke flow | Passing through `QuantTradingApp/scripts/verify_emulator_smoke.sh` | Go for internal testing |
 | Subscription value surfaces | Implemented as local research tools, including K-line-driven historical backtests | Go for MVP validation |
 | Real payments | Backend sandbox order/callback scaffold exists; merchant callbacks not connected | No-go for paid launch |
 | Server-side entitlement | Backend source-of-truth scaffold exists; Android has a build-flagged sync path and QA build can require server-side entitlement, but production API is not deployed | No-go for paid launch |

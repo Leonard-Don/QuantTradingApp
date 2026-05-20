@@ -1,4 +1,4 @@
-# TianXianQuant Minimal Server Contract
+# QuantTradingApp Minimal Server Contract
 
 This document defines the smallest backend needed to replace the current local-only account and VIP state.
 
@@ -82,7 +82,7 @@ App behavior:
 - Treat VIP as active only if `serverTime < expireTime` or `serverTime < graceUntil`.
 - Persist the latest verified entitlement with `lastVerifiedAt`.
 - If offline, allow cached entitlement only inside the grace window.
-- Android debug builds can enable this contract with `-PtianxianBackendSyncEnabled=true -PtianxianApiBaseUrl=http://10.0.2.2:8080/`.
+- Android debug builds can enable this contract with `-PquanttradingBackendSyncEnabled=true -PquanttradingApiBaseUrl=http://10.0.2.2:8080/`.
 - The Android account page uses the enabled contract for login, access-token refresh, entitlement refresh, debug sandbox subscription sync, and account deletion.
 
 ### DELETE `/v1/me`
@@ -191,13 +191,13 @@ Backend requirements:
 - Persist callback audit events.
 - Persist audit events for paid, refunded, chargeback, and cancelled states.
 
-Current local backend scaffold supports sandbox `PAID`, `REFUNDED`, and `CANCELLED` events, optional HMAC via `TIANXIAN_PAYMENT_CALLBACK_SECRET`, duplicate provider transaction rejection, and callback audit rows. Production WeChat/Alipay native signature verification is still a merchant-credential task.
+Current local backend scaffold supports sandbox `PAID`, `REFUNDED`, and `CANCELLED` events, optional HMAC via `QUANTTRADING_PAYMENT_CALLBACK_SECRET`, duplicate provider transaction rejection, and callback audit rows. Production WeChat/Alipay native signature verification is still a merchant-credential task.
 
 ## Admin Audit
 
 ### GET `/v1/admin/audit`
 
-Returns a read-only operational snapshot for smoke checks and manual reconciliation. The route is disabled unless `TIANXIAN_ADMIN_TOKEN` is configured. Clients must pass either `X-Admin-Token` or `?token=`.
+Returns a read-only operational snapshot for smoke checks and manual reconciliation. The route is disabled unless `QUANTTRADING_ADMIN_TOKEN` is configured. Clients must pass either `X-Admin-Token` or `?token=`.
 
 Response:
 

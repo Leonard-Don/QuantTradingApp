@@ -1,4 +1,4 @@
-# TianXianQuant Manual QA Matrix
+# QuantTradingApp Manual QA Matrix
 
 Last reviewed: 2026-05-02
 

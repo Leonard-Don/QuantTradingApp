@@ -34,7 +34,7 @@ def _step_body(job_body: str, step_name: str) -> str:
 def test_android_p0_workflow_builds_demo_apk() -> None:
     step = _step_body(_verify_job_body(), "Build demo APK")
 
-    assert "cd TianXianQuant" in step, (
+    assert "cd QuantTradingApp" in step, (
         "the demo APK gate should run from the Android project root so Gradle "
         "uses the same wrapper and settings as local verification."
     )

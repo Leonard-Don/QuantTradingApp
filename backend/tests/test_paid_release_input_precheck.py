@@ -28,12 +28,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PRECHECK_SCRIPT = REPO_ROOT / "scripts" / "check_paid_release_inputs.sh"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_paid_release_config.sh"
-BUILD_RELEASE_SCRIPT = REPO_ROOT / "TianXianQuant" / "scripts" / "build_release_artifacts.sh"
+BUILD_RELEASE_SCRIPT = REPO_ROOT / "QuantTradingApp" / "scripts" / "build_release_artifacts.sh"
 README_DOC = REPO_ROOT / "README.md"
 RELEASE_ENV_EXAMPLE = REPO_ROOT / "release.env.example"
 RELEASE_SIGNING_DOC = REPO_ROOT / "docs" / "RELEASE_SIGNING.md"
 RELEASE_GATE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-gate.yml"
-GRADLE_BUILD_FILE = REPO_ROOT / "TianXianQuant" / "app" / "build.gradle.kts"
+GRADLE_BUILD_FILE = REPO_ROOT / "QuantTradingApp" / "app" / "build.gradle.kts"
 
 RELEASE_SIGNING_ARGV_GUARD_FILES = (
     VERIFY_SCRIPT,
@@ -51,20 +51,20 @@ RELEASE_SIGNING_DOC_FILES = (
 )
 
 DOC_SIGNING_SECRET_ASSIGNMENT_RE = re.compile(
-    r"\b(?P<name>TIANXIAN_RELEASE_(?:KEYSTORE|STORE_PASSWORD|KEY_PASSWORD))"
+    r"\b(?P<name>QUANTTRADING_RELEASE_(?:KEYSTORE|STORE_PASSWORD|KEY_PASSWORD))"
     r"\s*=\s*(?P<quote>['\"]?)(?P<value>[^'\"\\\s]+)(?P=quote)"
 )
 DOC_SIGNING_SYNTHETIC_VALUES = {
-    "TIANXIAN_RELEASE_KEYSTORE": {
+    "QUANTTRADING_RELEASE_KEYSTORE": {
         "/secure/path/release.keystore",
-        "/secure/path/tianxian-upload.jks",
+        "/secure/path/quanttrading-upload.jks",
     },
-    "TIANXIAN_RELEASE_STORE_PASSWORD": {
+    "QUANTTRADING_RELEASE_STORE_PASSWORD": {
         "***",
         "<store-password>",
         "replace-with-store-password",
     },
-    "TIANXIAN_RELEASE_KEY_PASSWORD": {
+    "QUANTTRADING_RELEASE_KEY_PASSWORD": {
         "***",
         "<key-password>",
         "replace-with-key-password",
@@ -82,7 +82,7 @@ PLACEHOLDER_SUPPORT_EMAIL = "support-precheck-fixture-marker@example.com"
 # this test so a leak in stdout/stderr would be unmistakable.
 USERINFO_LEAK_PASSWORD = "userinfo-precheck-fixture-marker"
 USERINFO_API_URL = (
-    f"https://realops:{USERINFO_LEAK_PASSWORD}@api.tianxianquant-prod.invalid/v1/"
+    f"https://realops:{USERINFO_LEAK_PASSWORD}@api.quanttrading-prod.invalid/v1/"
 )
 
 # A keystore path that cannot exist on the runner. The unique marker lets a
@@ -90,7 +90,7 @@ USERINFO_API_URL = (
 # unambiguously, the same way the URL/email fixtures above work.
 KEYSTORE_LEAK_MARKER = "keystore-precheck-fixture-marker"
 NONEXISTENT_KEYSTORE = (
-    f"/tmp/tianxianquant-{KEYSTORE_LEAK_MARKER}-DO-NOT-CREATE.jks"
+    f"/tmp/quanttrading-{KEYSTORE_LEAK_MARKER}-DO-NOT-CREATE.jks"
 )
 
 WRAPPER_KEYSTORE_MARKER = "keystore-wrapper-[fixture]-marker"
@@ -102,22 +102,22 @@ WRAPPER_KEY_PASSWORD_MARKER = f"{WRAPPER_KEY_ALIAS_MARKER}-{WRAPPER_KEY_PASSWORD
 # Vars the precheck reads. Cleared from the env before each run so a stray
 # value in the developer's shell can't mask a regression.
 PRECHECK_INPUT_VARS = (
-    "TIANXIAN_PRODUCTION_API_BASE_URL",
-    "TIANXIAN_PRIVACY_POLICY_URL",
-    "TIANXIAN_TERMS_URL",
-    "TIANXIAN_DATA_DISCLAIMER_URL",
-    "TIANXIAN_SUPPORT_EMAIL",
-    "TIANXIAN_RELEASE_KEYSTORE",
+    "QUANTTRADING_PRODUCTION_API_BASE_URL",
+    "QUANTTRADING_PRIVACY_POLICY_URL",
+    "QUANTTRADING_TERMS_URL",
+    "QUANTTRADING_DATA_DISCLAIMER_URL",
+    "QUANTTRADING_SUPPORT_EMAIL",
+    "QUANTTRADING_RELEASE_KEYSTORE",
 )
 
 VERIFY_WRAPPER_INPUT_VARS = PRECHECK_INPUT_VARS + (
-    "TIANXIAN_RELEASE_STORE_PASSWORD",
-    "TIANXIAN_RELEASE_KEY_ALIAS",
-    "TIANXIAN_RELEASE_KEY_PASSWORD",
-    "ORG_GRADLE_PROJECT_tianxianReleaseKeystore",
-    "ORG_GRADLE_PROJECT_tianxianReleaseStorePassword",
-    "ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias",
-    "ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword",
+    "QUANTTRADING_RELEASE_STORE_PASSWORD",
+    "QUANTTRADING_RELEASE_KEY_ALIAS",
+    "QUANTTRADING_RELEASE_KEY_PASSWORD",
+    "ORG_GRADLE_PROJECT_quanttradingReleaseKeystore",
+    "ORG_GRADLE_PROJECT_quanttradingReleaseStorePassword",
+    "ORG_GRADLE_PROJECT_quanttradingReleaseKeyAlias",
+    "ORG_GRADLE_PROJECT_quanttradingReleaseKeyPassword",
 )
 
 
@@ -148,7 +148,7 @@ def _copy_release_gate_scripts(target_root: Path) -> Path:
 
 
 def _copy_build_release_script(target_root: Path) -> Path:
-    scripts_dir = target_root / "TianXianQuant" / "scripts"
+    scripts_dir = target_root / "QuantTradingApp" / "scripts"
     scripts_dir.mkdir(parents=True)
     copied_build = scripts_dir / "build_release_artifacts.sh"
     shutil.copy2(BUILD_RELEASE_SCRIPT, copied_build)
@@ -158,11 +158,11 @@ def _copy_build_release_script(target_root: Path) -> Path:
 
 def _valid_release_gate_env() -> dict[str, str]:
     return {
-        "TIANXIAN_PRODUCTION_API_BASE_URL": "https://api.tianxianquant-prod.invalid/v1/",
-        "TIANXIAN_PRIVACY_POLICY_URL": "https://legal.tianxianquant-prod.invalid/privacy",
-        "TIANXIAN_TERMS_URL": "https://legal.tianxianquant-prod.invalid/terms",
-        "TIANXIAN_DATA_DISCLAIMER_URL": "https://legal.tianxianquant-prod.invalid/data",
-        "TIANXIAN_SUPPORT_EMAIL": "support@tianxianquant-prod.invalid",
+        "QUANTTRADING_PRODUCTION_API_BASE_URL": "https://api.quanttrading-prod.invalid/v1/",
+        "QUANTTRADING_PRIVACY_POLICY_URL": "https://legal.quanttrading-prod.invalid/privacy",
+        "QUANTTRADING_TERMS_URL": "https://legal.quanttrading-prod.invalid/terms",
+        "QUANTTRADING_DATA_DISCLAIMER_URL": "https://legal.quanttrading-prod.invalid/data",
+        "QUANTTRADING_SUPPORT_EMAIL": "support@quanttrading-prod.invalid",
     }
 
 
@@ -174,19 +174,19 @@ def test_precheck_script_exists_and_is_executable() -> None:
 def test_precheck_rejects_placeholder_url_and_email() -> None:
     result = _run_precheck(
         {
-            "TIANXIAN_PRODUCTION_API_BASE_URL": PLACEHOLDER_API_URL,
-            "TIANXIAN_SUPPORT_EMAIL": PLACEHOLDER_SUPPORT_EMAIL,
+            "QUANTTRADING_PRODUCTION_API_BASE_URL": PLACEHOLDER_API_URL,
+            "QUANTTRADING_SUPPORT_EMAIL": PLACEHOLDER_SUPPORT_EMAIL,
         }
     )
     assert result.returncode != 0, (
         "precheck exited 0 with placeholder inputs; "
         f"stdout={result.stdout!r}"
     )
-    assert "TIANXIAN_PRODUCTION_API_BASE_URL" in result.stderr, (
+    assert "QUANTTRADING_PRODUCTION_API_BASE_URL" in result.stderr, (
         "operator-facing error must name the failing URL variable; "
         f"stderr={result.stderr!r}"
     )
-    assert "TIANXIAN_SUPPORT_EMAIL" in result.stderr, (
+    assert "QUANTTRADING_SUPPORT_EMAIL" in result.stderr, (
         "operator-facing error must name the failing email variable; "
         f"stderr={result.stderr!r}"
     )
@@ -195,8 +195,8 @@ def test_precheck_rejects_placeholder_url_and_email() -> None:
 def test_precheck_does_not_echo_literal_env_values() -> None:
     result = _run_precheck(
         {
-            "TIANXIAN_PRODUCTION_API_BASE_URL": PLACEHOLDER_API_URL,
-            "TIANXIAN_SUPPORT_EMAIL": PLACEHOLDER_SUPPORT_EMAIL,
+            "QUANTTRADING_PRODUCTION_API_BASE_URL": PLACEHOLDER_API_URL,
+            "QUANTTRADING_SUPPORT_EMAIL": PLACEHOLDER_SUPPORT_EMAIL,
         }
     )
     combined = result.stdout + result.stderr
@@ -219,7 +219,7 @@ def test_precheck_rejects_url_with_embedded_userinfo() -> None:
     # the credentials would also end up baked into BuildConfig at compile
     # time. Reject the URL before Gradle sees it.
     result = _run_precheck(
-        {"TIANXIAN_PRODUCTION_API_BASE_URL": USERINFO_API_URL}
+        {"QUANTTRADING_PRODUCTION_API_BASE_URL": USERINFO_API_URL}
     )
     assert result.returncode != 0, (
         "precheck accepted an https:// URL with embedded userinfo - "
@@ -227,7 +227,7 @@ def test_precheck_rejects_url_with_embedded_userinfo() -> None:
         "leak into CI logs/BuildConfig. "
         f"stdout={result.stdout!r}"
     )
-    assert "TIANXIAN_PRODUCTION_API_BASE_URL" in result.stderr, (
+    assert "QUANTTRADING_PRODUCTION_API_BASE_URL" in result.stderr, (
         "operator-facing error must name the failing variable so the right "
         f"URL is fixed; stderr={result.stderr!r}"
     )
@@ -247,7 +247,7 @@ def test_precheck_redacts_keystore_path_on_missing_file() -> None:
     # bad, the error must name the variable but never echo the path itself.
     # Local keystore paths embed developer or CI-runner directory layouts,
     # and verify_paid_release_config.sh streams stderr straight into job
-    # logs - a "helpful" refactor that interpolated $TIANXIAN_RELEASE_KEYSTORE
+    # logs - a "helpful" refactor that interpolated $QUANTTRADING_RELEASE_KEYSTORE
     # into the error would leak that layout. Lock the redaction in.
     from pathlib import Path as _Path
 
@@ -255,12 +255,12 @@ def test_precheck_redacts_keystore_path_on_missing_file() -> None:
         "fixture path unexpectedly exists; pick a different marker so the "
         "test exercises the missing-file branch"
     )
-    result = _run_precheck({"TIANXIAN_RELEASE_KEYSTORE": NONEXISTENT_KEYSTORE})
+    result = _run_precheck({"QUANTTRADING_RELEASE_KEYSTORE": NONEXISTENT_KEYSTORE})
     assert result.returncode != 0, (
-        "precheck accepted a TIANXIAN_RELEASE_KEYSTORE pointing at a "
+        "precheck accepted a QUANTTRADING_RELEASE_KEYSTORE pointing at a "
         f"nonexistent file. stdout={result.stdout!r}"
     )
-    assert "TIANXIAN_RELEASE_KEYSTORE" in result.stderr, (
+    assert "QUANTTRADING_RELEASE_KEYSTORE" in result.stderr, (
         "operator-facing error must name the failing keystore variable; "
         f"stderr={result.stderr!r}"
     )
@@ -277,22 +277,22 @@ def test_precheck_redacts_keystore_path_on_missing_file() -> None:
 
 def test_release_gate_materializes_keystore_secret_before_precheck() -> None:
     text = RELEASE_GATE_WORKFLOW.read_text(encoding="utf-8")
-    assert "TIANXIAN_RELEASE_KEYSTORE_BASE64" in text, (
+    assert "QUANTTRADING_RELEASE_KEYSTORE_BASE64" in text, (
         "GitHub release gate must accept a base64-encoded keystore secret and "
         "materialize it to a runner-local file before the shell precheck runs."
     )
     assert "base64 --decode" in text
-    assert "${{ runner.temp }}/tianxian-release.jks" in text
-    assert "TIANXIAN_RELEASE_KEYSTORE: ${{ runner.temp }}/tianxian-release.jks" in text
-    assert "TIANXIAN_RELEASE_KEYSTORE: ${{ secrets.TIANXIAN_RELEASE_KEYSTORE }}" not in text, (
-        "the precheck expects TIANXIAN_RELEASE_KEYSTORE to be a file path, not "
+    assert "${{ runner.temp }}/quanttrading-release.jks" in text
+    assert "QUANTTRADING_RELEASE_KEYSTORE: ${{ runner.temp }}/quanttrading-release.jks" in text
+    assert "QUANTTRADING_RELEASE_KEYSTORE: ${{ secrets.QUANTTRADING_RELEASE_KEYSTORE }}" not in text, (
+        "the precheck expects QUANTTRADING_RELEASE_KEYSTORE to be a file path, not "
         "raw secret contents."
     )
 
 
 def test_verify_wrapper_does_not_template_keystore_path_into_error_text() -> None:
     text = VERIFY_SCRIPT.read_text(encoding="utf-8")
-    assert "missing file: $TIANXIAN_RELEASE_KEYSTORE" not in text, (
+    assert "missing file: $QUANTTRADING_RELEASE_KEYSTORE" not in text, (
         "verify wrapper must not interpolate the local keystore path into "
         "missing-file errors."
     )
@@ -300,7 +300,7 @@ def test_verify_wrapper_does_not_template_keystore_path_into_error_text() -> Non
 
 def test_build_release_wrapper_does_not_template_keystore_path_into_error_text() -> None:
     text = BUILD_RELEASE_SCRIPT.read_text(encoding="utf-8")
-    assert "missing file: $TIANXIAN_RELEASE_KEYSTORE" not in text, (
+    assert "missing file: $QUANTTRADING_RELEASE_KEYSTORE" not in text, (
         "release artifact wrapper must not interpolate the local keystore path "
         "into missing-file errors."
     )
@@ -309,7 +309,7 @@ def test_build_release_wrapper_does_not_template_keystore_path_into_error_text()
 def test_release_signing_values_are_not_gradle_argv_examples() -> None:
     for path in RELEASE_SIGNING_ARGV_GUARD_FILES:
         text = path.read_text(encoding="utf-8")
-        assert "-PtianxianRelease" not in text, (
+        assert "-PquanttradingRelease" not in text, (
             f"{path.relative_to(REPO_ROOT)} must not document or pass release "
             "signing values as Gradle -P argv properties."
         )
@@ -346,7 +346,7 @@ def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(
     tmp_path: Path,
 ) -> None:
     verify_script = _copy_release_gate_scripts(tmp_path)
-    app_dir = tmp_path / "TianXianQuant"
+    app_dir = tmp_path / "QuantTradingApp"
     app_dir.mkdir()
 
     args_file = tmp_path / "gradle-args.txt"
@@ -365,30 +365,30 @@ def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(
             done
 
             {
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeystore:-}" == "${TIANXIAN_RELEASE_KEYSTORE:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseKeystore:-}" == "${QUANTTRADING_RELEASE_KEYSTORE:-}" ]]; then
                 echo "keystore=ok"
               else
                 echo "keystore=bad"
               fi
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseStorePassword:-}" == "${TIANXIAN_RELEASE_STORE_PASSWORD:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseStorePassword:-}" == "${QUANTTRADING_RELEASE_STORE_PASSWORD:-}" ]]; then
                 echo "store_password=ok"
               else
                 echo "store_password=bad"
               fi
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias:-}" == "${TIANXIAN_RELEASE_KEY_ALIAS:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseKeyAlias:-}" == "${QUANTTRADING_RELEASE_KEY_ALIAS:-}" ]]; then
                 echo "key_alias=ok"
               else
                 echo "key_alias=bad"
               fi
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword:-}" == "${TIANXIAN_RELEASE_KEY_PASSWORD:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseKeyPassword:-}" == "${QUANTTRADING_RELEASE_KEY_PASSWORD:-}" ]]; then
                 echo "key_password=ok"
               else
                 echo "key_password=bad"
               fi
             } > "$VERIFY_WRAPPER_ENV_FILE"
 
-            echo "stub gradle failure after argv capture: $TIANXIAN_RELEASE_KEYSTORE" >&2
-            echo "stdout leak probe: $TIANXIAN_RELEASE_STORE_PASSWORD $TIANXIAN_RELEASE_KEY_ALIAS $TIANXIAN_RELEASE_KEY_PASSWORD"
+            echo "stub gradle failure after argv capture: $QUANTTRADING_RELEASE_KEYSTORE" >&2
+            echo "stdout leak probe: $QUANTTRADING_RELEASE_STORE_PASSWORD $QUANTTRADING_RELEASE_KEY_ALIAS $QUANTTRADING_RELEASE_KEY_PASSWORD"
             exit 42
             """
         ),
@@ -405,10 +405,10 @@ def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(
     env.update(
         _valid_release_gate_env()
         | {
-            "TIANXIAN_RELEASE_KEYSTORE": str(keystore),
-            "TIANXIAN_RELEASE_STORE_PASSWORD": WRAPPER_STORE_PASSWORD_MARKER,
-            "TIANXIAN_RELEASE_KEY_ALIAS": WRAPPER_KEY_ALIAS_MARKER,
-            "TIANXIAN_RELEASE_KEY_PASSWORD": WRAPPER_KEY_PASSWORD_MARKER,
+            "QUANTTRADING_RELEASE_KEYSTORE": str(keystore),
+            "QUANTTRADING_RELEASE_STORE_PASSWORD": WRAPPER_STORE_PASSWORD_MARKER,
+            "QUANTTRADING_RELEASE_KEY_ALIAS": WRAPPER_KEY_ALIAS_MARKER,
+            "QUANTTRADING_RELEASE_KEY_PASSWORD": WRAPPER_KEY_PASSWORD_MARKER,
             "VERIFY_WRAPPER_ARGS_FILE": str(args_file),
             "VERIFY_WRAPPER_ENV_FILE": str(env_file),
         }
@@ -446,15 +446,15 @@ def test_verify_wrapper_keeps_release_signing_values_out_of_gradle_argv(
             "verify wrapper leaked a signing fixture marker into Gradle argv "
             "or failure output."
         )
-    assert "tianxianReleaseStorePassword" not in gradle_argv
-    assert "tianxianReleaseKeyPassword" not in gradle_argv
+    assert "quanttradingReleaseStorePassword" not in gradle_argv
+    assert "quanttradingReleaseKeyPassword" not in gradle_argv
 
 
 def test_build_release_wrapper_keeps_release_signing_values_out_of_gradle_argv(
     tmp_path: Path,
 ) -> None:
     build_script = _copy_build_release_script(tmp_path)
-    app_dir = tmp_path / "TianXianQuant"
+    app_dir = tmp_path / "QuantTradingApp"
 
     args_file = tmp_path / "gradle-args.txt"
     env_file = tmp_path / "gradle-env.txt"
@@ -472,30 +472,30 @@ def test_build_release_wrapper_keeps_release_signing_values_out_of_gradle_argv(
             done
 
             {
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeystore:-}" == "${TIANXIAN_RELEASE_KEYSTORE:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseKeystore:-}" == "${QUANTTRADING_RELEASE_KEYSTORE:-}" ]]; then
                 echo "keystore=ok"
               else
                 echo "keystore=bad"
               fi
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseStorePassword:-}" == "${TIANXIAN_RELEASE_STORE_PASSWORD:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseStorePassword:-}" == "${QUANTTRADING_RELEASE_STORE_PASSWORD:-}" ]]; then
                 echo "store_password=ok"
               else
                 echo "store_password=bad"
               fi
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyAlias:-}" == "${TIANXIAN_RELEASE_KEY_ALIAS:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseKeyAlias:-}" == "${QUANTTRADING_RELEASE_KEY_ALIAS:-}" ]]; then
                 echo "key_alias=ok"
               else
                 echo "key_alias=bad"
               fi
-              if [[ "${ORG_GRADLE_PROJECT_tianxianReleaseKeyPassword:-}" == "${TIANXIAN_RELEASE_KEY_PASSWORD:-}" ]]; then
+              if [[ "${ORG_GRADLE_PROJECT_quanttradingReleaseKeyPassword:-}" == "${QUANTTRADING_RELEASE_KEY_PASSWORD:-}" ]]; then
                 echo "key_password=ok"
               else
                 echo "key_password=bad"
               fi
             } > "$BUILD_WRAPPER_ENV_FILE"
 
-            echo "stub release gradle failure after argv capture: $TIANXIAN_RELEASE_KEYSTORE" >&2
-            echo "stdout leak probe: $TIANXIAN_RELEASE_STORE_PASSWORD $TIANXIAN_RELEASE_KEY_ALIAS $TIANXIAN_RELEASE_KEY_PASSWORD"
+            echo "stub release gradle failure after argv capture: $QUANTTRADING_RELEASE_KEYSTORE" >&2
+            echo "stdout leak probe: $QUANTTRADING_RELEASE_STORE_PASSWORD $QUANTTRADING_RELEASE_KEY_ALIAS $QUANTTRADING_RELEASE_KEY_PASSWORD"
             exit 42
             """
         ),
@@ -512,10 +512,10 @@ def test_build_release_wrapper_keeps_release_signing_values_out_of_gradle_argv(
     env.update(
         {
             "JAVA_HOME": str(tmp_path / "synthetic-jdk17"),
-            "TIANXIAN_RELEASE_KEYSTORE": str(keystore),
-            "TIANXIAN_RELEASE_STORE_PASSWORD": WRAPPER_STORE_PASSWORD_MARKER,
-            "TIANXIAN_RELEASE_KEY_ALIAS": WRAPPER_KEY_ALIAS_MARKER,
-            "TIANXIAN_RELEASE_KEY_PASSWORD": WRAPPER_KEY_PASSWORD_MARKER,
+            "QUANTTRADING_RELEASE_KEYSTORE": str(keystore),
+            "QUANTTRADING_RELEASE_STORE_PASSWORD": WRAPPER_STORE_PASSWORD_MARKER,
+            "QUANTTRADING_RELEASE_KEY_ALIAS": WRAPPER_KEY_ALIAS_MARKER,
+            "QUANTTRADING_RELEASE_KEY_PASSWORD": WRAPPER_KEY_PASSWORD_MARKER,
             "BUILD_WRAPPER_ARGS_FILE": str(args_file),
             "BUILD_WRAPPER_ENV_FILE": str(env_file),
         }
@@ -553,5 +553,5 @@ def test_build_release_wrapper_keeps_release_signing_values_out_of_gradle_argv(
             "release artifact wrapper leaked a signing fixture marker into "
             "Gradle argv or failure output."
         )
-    assert "tianxianReleaseStorePassword" not in gradle_argv
-    assert "tianxianReleaseKeyPassword" not in gradle_argv
+    assert "quanttradingReleaseStorePassword" not in gradle_argv
+    assert "quanttradingReleaseKeyPassword" not in gradle_argv

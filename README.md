@@ -1,4 +1,4 @@
-# 天线量化 - Android App
+# Quant 交易台 - Android App
 
 ## 项目概述
 
@@ -63,9 +63,9 @@
 ## 项目结构
 
 ```
-TianXianQuant/
+QuantTradingApp/
 ├── app/
-│   ├── src/main/java/com/tianxian/quant/
+│   ├── src/main/java/io/github/leonarddon/quanttrading/
 │   │   ├── MainActivity.kt
 │   │   ├── MyApp.kt
 │   │   ├── data/                 # Room 实体、DAO、迁移与本机状态仓库
@@ -118,7 +118,7 @@ TianXianQuant/
 
 **v1.0.0 代码侧收口** (2026-05-16) — feature development frozen on the codebase side.
 
-天线量化的代码已经到达"等待上架"的稳定状态：所有功能模块、合规约束、付费闸门、签名管道、QA 验证脚本都已完成，剩下的事情**都是运营 / Ops 工作，不再需要写代码**。
+Quant 交易台的代码已经到达"等待上架"的稳定状态：所有功能模块、合规约束、付费闸门、签名管道、QA 验证脚本都已完成，剩下的事情**都是运营 / Ops 工作，不再需要写代码**。
 
 ### 代码侧已完成（不再迭代）
 
@@ -147,7 +147,7 @@ TianXianQuant/
 
 1. **填法律文档占位符** — 3 份 `docs/legal/*.md` 里的 `【上架前由运营方填写】`（运营主体、地址、support 邮箱）
 2. **启用 GitHub Pages** — Settings → Pages → Source = GitHub Actions，触发 `legal-docs-pages.yml` 工作流
-3. **生成签名 keystore** — `keytool -genkeypair -v -keystore ~/Library/Application\ Support/tianxian/release.jks ...`，填 `release.env`
+3. **生成签名 keystore** — `keytool -genkeypair -v -keystore ~/Library/Application\ Support/quanttrading/release.jks ...`，填 `release.env`
 4. **部署后端到 Render** + 接入 WeChat/Alipay / Play Billing 商户 sandbox
 
 详细步骤见 [docs/RELEASE_USER_CHECKLIST.md](docs/RELEASE_USER_CHECKLIST.md)（10 个有序步骤 + 完整的命令模板）。
@@ -155,7 +155,7 @@ TianXianQuant/
 ## 本地验证
 
 ```bash
-cd TianXianQuant
+cd QuantTradingApp
 scripts/verify_p0.sh
 scripts/verify_emulator_smoke.sh
 
@@ -169,22 +169,22 @@ scripts/verify_paid_release_config.sh
 
 # Android 端联调本地后端时
 ./gradlew :app:assembleDebug \
-  -PtianxianBackendSyncEnabled=true \
-  -PtianxianApiBaseUrl=http://10.0.2.2:8080/
+  -PquanttradingBackendSyncEnabled=true \
+  -PquanttradingApiBaseUrl=http://10.0.2.2:8080/
 
 # 后端权益强制 QA 构建
-TIANXIAN_API_BASE_URL=http://10.0.2.2:8080/ scripts/build_qa_backend_debug.sh
+QUANTTRADING_API_BASE_URL=http://10.0.2.2:8080/ scripts/build_qa_backend_debug.sh
 
 # 付费/商店发布配置闸门，未配置外部生产资源时会故意失败
-TIANXIAN_PRODUCTION_API_BASE_URL=https://api.example.com/ \
-TIANXIAN_PRIVACY_POLICY_URL=https://example.com/privacy \
-TIANXIAN_TERMS_URL=https://example.com/terms \
-TIANXIAN_DATA_DISCLAIMER_URL=https://example.com/data-disclaimer \
-TIANXIAN_SUPPORT_EMAIL=support@example.com \
-TIANXIAN_RELEASE_KEYSTORE=/secure/path/release.keystore \
-TIANXIAN_RELEASE_STORE_PASSWORD='***' \
-TIANXIAN_RELEASE_KEY_ALIAS=tianxian-upload \
-TIANXIAN_RELEASE_KEY_PASSWORD='***' \
+QUANTTRADING_PRODUCTION_API_BASE_URL=https://api.example.com/ \
+QUANTTRADING_PRIVACY_POLICY_URL=https://example.com/privacy \
+QUANTTRADING_TERMS_URL=https://example.com/terms \
+QUANTTRADING_DATA_DISCLAIMER_URL=https://example.com/data-disclaimer \
+QUANTTRADING_SUPPORT_EMAIL=support@example.com \
+QUANTTRADING_RELEASE_KEYSTORE=/secure/path/release.keystore \
+QUANTTRADING_RELEASE_STORE_PASSWORD='***' \
+QUANTTRADING_RELEASE_KEY_ALIAS=quanttrading-upload \
+QUANTTRADING_RELEASE_KEY_PASSWORD='***' \
 scripts/verify_paid_release_config.sh
 ```
 
@@ -208,7 +208,7 @@ scripts/verify_paid_release_config.sh
 
 详细 10 步流程见 [docs/RELEASE_USER_CHECKLIST.md](docs/RELEASE_USER_CHECKLIST.md)，包括：
 
-1. 用 `render.yaml` 或等价平台部署 `backend/`，设置持久化数据库和 `TIANXIAN_PAYMENT_CALLBACK_SECRET`
+1. 用 `render.yaml` 或等价平台部署 `backend/`，设置持久化数据库和 `QUANTTRADING_PAYMENT_CALLBACK_SECRET`
 2. 接入正式微信/支付宝或 Google Play Billing 商户配置，替换 sandbox 回调
 3. 在 GitHub Pages 启用后填法律文档占位符，发布 privacy / terms / disclaimer URL
 4. 在 Settings → Secrets 配 keystore base64 + 4 个 release env，触发 `scripts/build_release_artifacts.sh`

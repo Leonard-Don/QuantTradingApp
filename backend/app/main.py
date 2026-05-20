@@ -25,7 +25,7 @@ DAY_MILLIS = 24 * 60 * 60 * 1000
 ACCESS_TOKEN_TTL_MILLIS = 2 * 60 * 60 * 1000
 GRACE_MILLIS = 7 * DAY_MILLIS
 CALLBACK_TIMESTAMP_WINDOW_MILLIS = 5 * 60 * 1000
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[1] / "data" / "tianxian.db"
+DEFAULT_DB_PATH = Path(__file__).resolve().parents[1] / "data" / "quanttrading.db"
 
 DEFAULT_RATE_LIMIT_RULES: dict[str, tuple[int, int]] = {
     "/v1/auth/register": (5, 60),
@@ -34,7 +34,7 @@ DEFAULT_RATE_LIMIT_RULES: dict[str, tuple[int, int]] = {
     "/v1/payment/callbacks/": (60, 60),
 }
 
-logger = logging.getLogger("tianxian")
+logger = logging.getLogger("quanttrading")
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -61,7 +61,7 @@ def _configure_logging() -> None:
     handler.setFormatter(JsonLogFormatter())
     root = logging.getLogger()
     root.handlers = [handler]
-    root.setLevel(os.getenv("TIANXIAN_LOG_LEVEL", "INFO").upper())
+    root.setLevel(os.getenv("QUANTTRADING_LOG_LEVEL", "INFO").upper())
     _configure_logging._done = True  # type: ignore[attr-defined]
 
 
@@ -142,7 +142,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 def _allowed_cors_origins() -> list[str]:
-    raw = os.getenv("TIANXIAN_CORS_ALLOW_ORIGINS", "").strip()
+    raw = os.getenv("QUANTTRADING_CORS_ALLOW_ORIGINS", "").strip()
     if not raw:
         return []
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
@@ -796,7 +796,7 @@ def require_admin_token(
     token: Optional[str] = Query(default=None),
     x_admin_token: Optional[str] = Header(default=None),
 ) -> None:
-    expected_token = os.getenv("TIANXIAN_ADMIN_TOKEN", "").strip()
+    expected_token = os.getenv("QUANTTRADING_ADMIN_TOKEN", "").strip()
     if not expected_token:
         raise HTTPException(status_code=403, detail="admin disabled")
     supplied_token = (x_admin_token or token or "").strip()
@@ -822,7 +822,7 @@ def render_admin_audit_html(snapshot: AdminAuditResponse) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TianXianQuant Admin Audit</title>
+  <title>QuantTradingApp Admin Audit</title>
   <style>
     :root {{
       color-scheme: light;
@@ -849,7 +849,7 @@ def render_admin_audit_html(snapshot: AdminAuditResponse) -> str:
 </head>
 <body>
   <main>
-    <h1>TianXianQuant Admin Audit</h1>
+    <h1>QuantTradingApp Admin Audit</h1>
     <div class="muted">Generated at {escape_cell(snapshot.generatedAt)}. This page is read-only.</div>
     <section class="counts">
       {render_metric("Users", snapshot.counts.get("users", 0))}
@@ -923,9 +923,9 @@ def create_app(
     rate_limit_rules: Optional[dict[str, tuple[int, int]]] = None,
 ) -> FastAPI:
     _configure_logging()
-    resolved_db_path = db_path or os.getenv("TIANXIAN_DB_PATH", str(DEFAULT_DB_PATH))
+    resolved_db_path = db_path or os.getenv("QUANTTRADING_DB_PATH", str(DEFAULT_DB_PATH))
     store = BackendStore(resolved_db_path)
-    app = FastAPI(title="TianXianQuant Backend", version="0.1.0")
+    app = FastAPI(title="QuantTradingApp Backend", version="0.1.0")
 
     cors_origins = _allowed_cors_origins()
     if cors_origins:
@@ -1053,8 +1053,8 @@ def hash_password(password: str, salt: str) -> str:
 
 
 def verify_callback_signature(request: PaymentCallbackRequest) -> None:
-    secret = os.getenv("TIANXIAN_PAYMENT_CALLBACK_SECRET", "")
-    require_signature = os.getenv("TIANXIAN_REQUIRE_CALLBACK_SIGNATURE", "0") == "1"
+    secret = os.getenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", "")
+    require_signature = os.getenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "0") == "1"
     if not secret:
         if require_signature:
             raise HTTPException(status_code=401, detail="payment callback secret is not configured")

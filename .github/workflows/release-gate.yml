@@ -37,24 +37,24 @@ jobs:
 
       - name: Materialize release keystore
         env:
-          TIANXIAN_RELEASE_KEYSTORE_BASE64: ${{ secrets.TIANXIAN_RELEASE_KEYSTORE_BASE64 }}
+          QUANTTRADING_RELEASE_KEYSTORE_BASE64: ${{ secrets.QUANTTRADING_RELEASE_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "${TIANXIAN_RELEASE_KEYSTORE_BASE64:-}" ]; then
-            echo "TIANXIAN_RELEASE_KEYSTORE_BASE64 secret is required" >&2
+          if [ -z "${QUANTTRADING_RELEASE_KEYSTORE_BASE64:-}" ]; then
+            echo "QUANTTRADING_RELEASE_KEYSTORE_BASE64 secret is required" >&2
             exit 1
           fi
-          printf '%s' "$TIANXIAN_RELEASE_KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/tianxian-release.jks"
-          chmod 600 "${{ runner.temp }}/tianxian-release.jks"
+          printf '%s' "$QUANTTRADING_RELEASE_KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/quanttrading-release.jks"
+          chmod 600 "${{ runner.temp }}/quanttrading-release.jks"
 
       - name: Run paid release configuration gate
         env:
-          TIANXIAN_PRODUCTION_API_BASE_URL: ${{ secrets.TIANXIAN_PRODUCTION_API_BASE_URL }}
-          TIANXIAN_PRIVACY_POLICY_URL: ${{ secrets.TIANXIAN_PRIVACY_POLICY_URL }}
-          TIANXIAN_TERMS_URL: ${{ secrets.TIANXIAN_TERMS_URL }}
-          TIANXIAN_DATA_DISCLAIMER_URL: ${{ secrets.TIANXIAN_DATA_DISCLAIMER_URL }}
-          TIANXIAN_SUPPORT_EMAIL: ${{ secrets.TIANXIAN_SUPPORT_EMAIL }}
-          TIANXIAN_RELEASE_KEYSTORE: ${{ runner.temp }}/tianxian-release.jks
-          TIANXIAN_RELEASE_STORE_PASSWORD: ${{ secrets.TIANXIAN_RELEASE_STORE_PASSWORD }}
-          TIANXIAN_RELEASE_KEY_ALIAS: ${{ secrets.TIANXIAN_RELEASE_KEY_ALIAS }}
-          TIANXIAN_RELEASE_KEY_PASSWORD: ${{ secrets.TIANXIAN_RELEASE_KEY_PASSWORD }}
+          QUANTTRADING_PRODUCTION_API_BASE_URL: ${{ secrets.QUANTTRADING_PRODUCTION_API_BASE_URL }}
+          QUANTTRADING_PRIVACY_POLICY_URL: ${{ secrets.QUANTTRADING_PRIVACY_POLICY_URL }}
+          QUANTTRADING_TERMS_URL: ${{ secrets.QUANTTRADING_TERMS_URL }}
+          QUANTTRADING_DATA_DISCLAIMER_URL: ${{ secrets.QUANTTRADING_DATA_DISCLAIMER_URL }}
+          QUANTTRADING_SUPPORT_EMAIL: ${{ secrets.QUANTTRADING_SUPPORT_EMAIL }}
+          QUANTTRADING_RELEASE_KEYSTORE: ${{ runner.temp }}/quanttrading-release.jks
+          QUANTTRADING_RELEASE_STORE_PASSWORD: ${{ secrets.QUANTTRADING_RELEASE_STORE_PASSWORD }}
+          QUANTTRADING_RELEASE_KEY_ALIAS: ${{ secrets.QUANTTRADING_RELEASE_KEY_ALIAS }}
+          QUANTTRADING_RELEASE_KEY_PASSWORD: ${{ secrets.QUANTTRADING_RELEASE_KEY_PASSWORD }}
         run: scripts/verify_paid_release_config.sh

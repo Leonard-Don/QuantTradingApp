@@ -1,4 +1,4 @@
-# TianXianQuant Release Candidate Summary
+# QuantTradingApp Release Candidate Summary
 
 Last reviewed: 2026-05-02
 
@@ -38,7 +38,7 @@ set -a
 source release.env
 set +a
 scripts/verify_paid_release_config.sh
-TianXianQuant/scripts/build_release_artifacts.sh
+QuantTradingApp/scripts/build_release_artifacts.sh
 ```
 
 The first command is the local engineering gate. The later commands are the paid/store gates and intentionally require real external values.

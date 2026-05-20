@@ -1,4 +1,4 @@
-# TianXianQuant Backend Scaffold
+# QuantTradingApp Backend Scaffold
 
 This is a minimal local backend scaffold for account, order, payment-callback, and entitlement flows. It is intended to replace the Android-only local VIP state during the next commercialization phase.
 
@@ -13,10 +13,10 @@ uvicorn app.main:app --reload --port 8080
 Android emulator debug builds can point at this local server with:
 
 ```bash
-cd ../TianXianQuant
+cd ../QuantTradingApp
 ./gradlew :app:assembleDebug \
-  -PtianxianBackendSyncEnabled=true \
-  -PtianxianApiBaseUrl=http://10.0.2.2:8080/
+  -PquanttradingBackendSyncEnabled=true \
+  -PquanttradingApiBaseUrl=http://10.0.2.2:8080/
 ```
 
 ## Test
@@ -43,16 +43,16 @@ The scaffold includes a production-shaped container and Render Blueprint:
 Minimum deploy environment:
 
 ```bash
-TIANXIAN_DB_PATH=/data/tianxian.db
-TIANXIAN_REQUIRE_CALLBACK_SIGNATURE=1
-TIANXIAN_PAYMENT_CALLBACK_SECRET=<strong-secret>
-TIANXIAN_ADMIN_TOKEN=<strong-admin-token>
+QUANTTRADING_DB_PATH=/data/quanttrading.db
+QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE=1
+QUANTTRADING_PAYMENT_CALLBACK_SECRET=<strong-secret>
+QUANTTRADING_ADMIN_TOKEN=<strong-admin-token>
 ```
 
 For QA Android builds that must not fall back to local VIP activation:
 
 ```bash
-TIANXIAN_API_BASE_URL=https://<deployed-backend>/ ../scripts/build_qa_backend_debug.sh
+QUANTTRADING_API_BASE_URL=https://<deployed-backend>/ ../scripts/build_qa_backend_debug.sh
 ```
 
 ## Implemented
@@ -78,7 +78,7 @@ TIANXIAN_API_BASE_URL=https://<deployed-backend>/ ../scripts/build_qa_backend_de
 - PBKDF2 password hashing with per-user salt.
 - Access/refresh token records scoped by device.
 - Callback amount/channel checks.
-- Optional HMAC callback signature via `TIANXIAN_PAYMENT_CALLBACK_SECRET`.
+- Optional HMAC callback signature via `QUANTTRADING_PAYMENT_CALLBACK_SECRET`.
 - Idempotent paid/refund/cancel callbacks.
 - Duplicate provider transaction rejection.
 - Payment callback audit table.
@@ -89,11 +89,11 @@ TIANXIAN_API_BASE_URL=https://<deployed-backend>/ ../scripts/build_qa_backend_de
 
 ## Admin Audit
 
-The admin audit surface is disabled unless `TIANXIAN_ADMIN_TOKEN` is set.
+The admin audit surface is disabled unless `QUANTTRADING_ADMIN_TOKEN` is set.
 
 ```bash
-curl -H "X-Admin-Token: $TIANXIAN_ADMIN_TOKEN" http://localhost:8080/v1/admin/audit
-open "http://localhost:8080/admin?token=$TIANXIAN_ADMIN_TOKEN"
+curl -H "X-Admin-Token: $QUANTTRADING_ADMIN_TOKEN" http://localhost:8080/v1/admin/audit
+open "http://localhost:8080/admin?token=$QUANTTRADING_ADMIN_TOKEN"
 ```
 
 Both routes are read-only. The JSON route is intended for smoke checks and monitoring scripts; the HTML route is the smallest manual review page for recent users, orders, payment callbacks, and entitlement state.

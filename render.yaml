@@ -1,19 +1,19 @@
 services:
   - type: web
-    name: tianxianquant-backend
+    name: quanttrading-backend
     runtime: docker
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /health
     plan: starter
     disk:
-      name: tianxianquant-data
+      name: quanttrading-data
       mountPath: /data
       sizeGB: 1
     envVars:
-      - key: TIANXIAN_DB_PATH
-        value: /data/tianxian.db
-      - key: TIANXIAN_REQUIRE_CALLBACK_SIGNATURE
+      - key: QUANTTRADING_DB_PATH
+        value: /data/quanttrading.db
+      - key: QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE
         value: "1"
-      - key: TIANXIAN_PAYMENT_CALLBACK_SECRET
+      - key: QUANTTRADING_PAYMENT_CALLBACK_SECRET
         sync: false

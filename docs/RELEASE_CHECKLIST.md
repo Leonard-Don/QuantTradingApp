@@ -1,9 +1,9 @@
-# TianXianQuant Release Checklist
+# QuantTradingApp Release Checklist
 
 ## Internal Demo APK
 
-- [x] `TianXianQuant/scripts/verify_p0.sh` passes.
-- [x] `TianXianQuant/scripts/verify_emulator_smoke.sh` passes.
+- [x] `QuantTradingApp/scripts/verify_p0.sh` passes.
+- [x] `QuantTradingApp/scripts/verify_emulator_smoke.sh` passes.
 - [x] Debug payment simulation is isolated behind `ALLOW_LOCAL_PAYMENT_SIMULATION`.
 - [x] Release build disables local VIP activation.
 - [x] Release build enables R8 minify and resource shrink.
@@ -67,7 +67,7 @@
 ## Build Commands
 
 ```bash
-cd TianXianQuant
+cd QuantTradingApp
 scripts/verify_p0.sh
 scripts/verify_emulator_smoke.sh
 scripts/build_release_artifacts.sh
@@ -80,10 +80,10 @@ scripts/prepare_store_candidate.sh
 scripts/capture_store_screenshots.sh
 
 # backend-sync debug build
-cd TianXianQuant
+cd QuantTradingApp
 ./gradlew :app:assembleDebug \
-  -PtianxianBackendSyncEnabled=true \
-  -PtianxianApiBaseUrl=http://10.0.2.2:8080/
+  -PquanttradingBackendSyncEnabled=true \
+  -PquanttradingApiBaseUrl=http://10.0.2.2:8080/
 
 # paid/store release configuration gate
 cd ..

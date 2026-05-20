@@ -1,1 +1,1 @@
-"""TianXianQuant backend scaffold."""
+"""QuantTradingApp backend scaffold."""

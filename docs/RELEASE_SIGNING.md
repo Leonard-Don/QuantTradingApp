@@ -17,15 +17,15 @@ cp release.env.example release.env
 ## Required Signing Values
 
 ```bash
-export TIANXIAN_RELEASE_KEYSTORE=/secure/path/tianxian-upload.jks
-export TIANXIAN_RELEASE_STORE_PASSWORD=<store-password>
-export TIANXIAN_RELEASE_KEY_ALIAS=tianxian-upload
-export TIANXIAN_RELEASE_KEY_PASSWORD=<key-password>
+export QUANTTRADING_RELEASE_KEYSTORE=/secure/path/quanttrading-upload.jks
+export QUANTTRADING_RELEASE_STORE_PASSWORD=<store-password>
+export QUANTTRADING_RELEASE_KEY_ALIAS=quanttrading-upload
+export QUANTTRADING_RELEASE_KEY_PASSWORD=<key-password>
 ```
 
-The Gradle release build reads these values through project properties. `TianXianQuant/scripts/build_release_artifacts.sh` and `scripts/verify_paid_release_config.sh` pass them automatically when the environment variables are set.
+The Gradle release build reads these values through project properties. `QuantTradingApp/scripts/build_release_artifacts.sh` and `scripts/verify_paid_release_config.sh` pass them automatically when the environment variables are set.
 
-The wrappers intentionally translate `TIANXIAN_RELEASE_*` values into `ORG_GRADLE_PROJECT_tianxianRelease*` environment variables. Do not pass signing values with Gradle's `-P` command-line option; argv can be echoed by CI logs, shell history, or process inspection. Keep release-signing examples in this file limited to environment variables and synthetic placeholders.
+The wrappers intentionally translate `QUANTTRADING_RELEASE_*` values into `ORG_GRADLE_PROJECT_quanttradingRelease*` environment variables. Do not pass signing values with Gradle's `-P` command-line option; argv can be echoed by CI logs, shell history, or process inspection. Keep release-signing examples in this file limited to environment variables and synthetic placeholders.
 
 ## Build A Signed Candidate
 
@@ -35,13 +35,13 @@ source release.env
 set +a
 
 scripts/verify_paid_release_config.sh
-TianXianQuant/scripts/build_release_artifacts.sh
+QuantTradingApp/scripts/build_release_artifacts.sh
 ```
 
 Expected outputs:
 
-- `TianXianQuant/app/build/outputs/apk/release/*.apk`
-- `TianXianQuant/app/build/outputs/bundle/release/*.aab`
+- `QuantTradingApp/app/build/outputs/apk/release/*.apk`
+- `QuantTradingApp/app/build/outputs/bundle/release/*.aab`
 
 Without signing values, the local build still produces unsigned release artifacts for engineering validation. That is useful for CI but not acceptable for store upload.
 

@@ -5,7 +5,7 @@
 `PaymentGateway` is intentionally a local boundary:
 
 - Debug builds can return `DebugPaid` for local verification.
-- Debug builds can optionally create a backend sandbox order when `tianxianBackendSyncEnabled=true`.
+- Debug builds can optionally create a backend sandbox order when `quanttradingBackendSyncEnabled=true`.
 - Release builds return `NotConfigured` and must not activate VIP.
 
 This keeps the Android UI flow testable without pretending real money collection exists.
@@ -26,7 +26,7 @@ This keeps the Android UI flow testable without pretending real money collection
 - Add WeChat Pay SDK and Alipay SDK only after merchant accounts are available.
 - Keep the build-flagged backend order path and replace the Debug sandbox callback with merchant SDK confirmation once merchant accounts are available.
 - Store order IDs, status, amount, channel, entitlement snapshots, and source locally. `[scaffolded]`
-- Use `-PtianxianRequireBackendPaymentSync=true` for QA builds that must block local VIP fallback when backend order/callback/entitlement sync fails. `[scaffolded]`
+- Use `-PquanttradingRequireBackendPaymentSync=true` for QA builds that must block local VIP fallback when backend order/callback/entitlement sync fails. `[scaffolded]`
 - Use `scripts/verify_paid_release_config.sh` as the paid/store release guard for production API, legal URLs, support email, backend sync, and signing input. `[scaffolded]`
 - Add UI states for pending, paid, failed, cancelled, refunded, and manual review. `[partially scaffolded: pending/paid/refunded/cancelled/manual-review labels are visible from cached order history]`
 
@@ -37,7 +37,7 @@ This keeps the Android UI flow testable without pretending real money collection
 - Idempotent entitlement activation. `[scaffolded]`
 - Refund/cancel event handling. `[scaffolded]`
 - User order list endpoint for Android status refresh. `[scaffolded]`
-- Admin audit view for order, callback, and entitlement changes. `[scaffolded: read-only JSON and HTML, gated by TIANXIAN_ADMIN_TOKEN]`
+- Admin audit view for order, callback, and entitlement changes. `[scaffolded: read-only JSON and HTML, gated by QUANTTRADING_ADMIN_TOKEN]`
 
 ## Test Matrix
 
@@ -56,7 +56,7 @@ Current scaffold coverage:
 - Duplicate `PAID` callback for the same order is idempotent.
 - Duplicate provider transaction ID on another order is rejected.
 - Amount and channel mismatch are rejected.
-- Optional HMAC callback signature can be required with `TIANXIAN_REQUIRE_CALLBACK_SIGNATURE=1`.
+- Optional HMAC callback signature can be required with `QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE=1`.
 - `REFUNDED` subtracts the paid duration from the entitlement snapshot; if the resulting time is already expired, it revokes to `0`.
 - `CANCELLED` can close a pending order without activating entitlement.
 

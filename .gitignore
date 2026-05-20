@@ -6,7 +6,7 @@
 **/build/
 local.properties
 *.iml
-TianXianQuant/cover.png
+QuantTradingApp/cover.png
 
 # Release signing and local launch secrets
 *.jks
@@ -14,7 +14,7 @@ TianXianQuant/cover.png
 *.p12
 release.env
 release-signing.properties
-TianXianQuant/release-signing.properties
+QuantTradingApp/release-signing.properties
 
 # Python
 __pycache__/
@@ -22,6 +22,6 @@ __pycache__/
 .venv/
 *.pyc
 
-# TianXian backend runtime data
+# QuantTrading backend runtime data
 backend/data/*.db
 backend/data/*.db-*
