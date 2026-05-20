@@ -41,4 +41,11 @@ class QuantFormulaPolicyTest {
         )
         assertTrue(QuantFormulaPolicy.rejectionReason("收盘价 > ma20")!!.contains("英文变量"))
     }
+
+    @Test
+    fun explainsUnsupportedPunctuationWithRejectedCharacter() {
+        val reason = QuantFormulaPolicy.rejectionReason("close @ ma20")!!
+
+        assertTrue(reason.contains("@"))
+    }
 }
