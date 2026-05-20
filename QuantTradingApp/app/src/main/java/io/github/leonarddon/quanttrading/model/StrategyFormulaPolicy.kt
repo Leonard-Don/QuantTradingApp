@@ -314,6 +314,8 @@ object StrategyFormulaPolicy {
                             tokens += Token.Operator(two)
                             i += 2
                         }
+                        "=>" -> throw FormulaException("大于等于比较必须写作 \">=\"。")
+                        "=<" -> throw FormulaException("小于等于比较必须写作 \"<=\"。")
                         else -> when (c) {
                             '+', '-', '*', '/', '>', '<', '!' -> {
                                 tokens += Token.Operator(c.toString())

@@ -55,4 +55,13 @@ class QuantFormulaPolicyTest {
 
         assertTrue(reason.contains("＞"))
     }
+
+    @Test
+    fun explainsReversedComparisonOperators() {
+        val greaterReason = QuantFormulaPolicy.rejectionReason("close => ma20")!!
+        val lessReason = QuantFormulaPolicy.rejectionReason("close =< ma20")!!
+
+        assertTrue(greaterReason.contains(">="))
+        assertTrue(lessReason.contains("<="))
+    }
 }
