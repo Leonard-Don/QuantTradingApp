@@ -88,4 +88,12 @@ class QuantFormulaPolicyTest {
         assertTrue(reason.contains("全角数字"))
         assertTrue(reason.contains("8"))
     }
+
+    @Test
+    fun explainsFullWidthDecimalPointAsHalfWidthDecimalPoint() {
+        val reason = QuantFormulaPolicy.rejectionReason("abs(close - ma20) / ma20 < 0．08")!!
+
+        assertTrue(reason.contains("全角小数点"))
+        assertTrue(reason.contains("0.08"))
+    }
 }
