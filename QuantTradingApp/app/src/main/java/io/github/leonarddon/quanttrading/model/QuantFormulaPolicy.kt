@@ -30,7 +30,9 @@ object QuantFormulaPolicy {
 
     private fun unsupportedCharacterReason(formula: String): String {
         val rejected = formula.firstOrNull { !isSupportedCharacter(it) }
-        return if (rejected != null && rejected.code < 128) {
+        return if (rejected == '%') {
+            "公式暂不支持百分比写法，请改用小数，例如 8% 写作 0.08。"
+        } else if (rejected != null && rejected.code < 128) {
             "公式包含非法字符 '$rejected'。"
         } else if (rejected != null && !rejected.isLetterOrDigit() && !rejected.isWhitespace()) {
             "公式包含不支持的符号 '$rejected'，请改用英文半角运算符。"
