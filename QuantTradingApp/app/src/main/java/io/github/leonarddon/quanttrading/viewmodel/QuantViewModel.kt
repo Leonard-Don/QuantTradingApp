@@ -174,6 +174,10 @@ class QuantViewModel : ViewModel() {
         return QuantFormulaPolicy.isAllowed(formula)
     }
 
+    fun formulaValidationMessage(formula: String): String? {
+        return QuantFormulaPolicy.rejectionReason(formula)
+    }
+
     fun refreshVipState() {
         viewModelScope.launch {
             _isVipActive.value = LocalStateRepository.isQuantVipActive()

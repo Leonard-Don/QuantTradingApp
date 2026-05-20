@@ -381,8 +381,9 @@ class QuantFragment : Fragment() {
                     Toast.makeText(requireContext(), "请输入策略名称", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                if (!viewModel.isFormulaAllowed(formula)) {
-                    Toast.makeText(requireContext(), "请输入 160 字以内的公式，仅支持变量、数字和常用运算符", Toast.LENGTH_LONG).show()
+                val formulaError = viewModel.formulaValidationMessage(formula)
+                if (formulaError != null) {
+                    Toast.makeText(requireContext(), formulaError, Toast.LENGTH_LONG).show()
                     return@setPositiveButton
                 }
 
