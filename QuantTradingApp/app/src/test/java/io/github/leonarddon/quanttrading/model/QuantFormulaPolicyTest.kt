@@ -96,4 +96,13 @@ class QuantFormulaPolicyTest {
         assertTrue(reason.contains("全角小数点"))
         assertTrue(reason.contains("0.08"))
     }
+
+    @Test
+    fun explainsFullWidthParenthesesAsHalfWidthParentheses() {
+        val reason = QuantFormulaPolicy.rejectionReason("abs（close - ma20） / ma20 < 0.08")!!
+
+        assertTrue(reason.contains("全角括号"))
+        assertTrue(reason.contains("("))
+        assertTrue(reason.contains(")"))
+    }
 }

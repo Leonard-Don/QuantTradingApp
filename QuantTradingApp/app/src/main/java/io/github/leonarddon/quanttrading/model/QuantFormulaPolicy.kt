@@ -37,6 +37,8 @@ object QuantFormulaPolicy {
             "公式包含全角数字 '$rejected'，请改用半角数字，例如 $rejected 写作 $halfWidthDigit。"
         } else if (rejected == '．') {
             "公式包含全角小数点 '．'，请改用半角小数点，例如 0．08 写作 0.08。"
+        } else if (rejected == '（' || rejected == '）') {
+            "公式包含全角括号 '$rejected'，请改用半角括号，例如 （close） 写作 (close)。"
         } else if (rejected != null && rejected.code < 128) {
             "公式包含非法字符 '$rejected'。"
         } else if (rejected != null && !rejected.isLetterOrDigit() && !rejected.isWhitespace()) {
