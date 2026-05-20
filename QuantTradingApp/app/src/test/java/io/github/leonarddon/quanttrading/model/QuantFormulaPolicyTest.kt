@@ -72,4 +72,12 @@ class QuantFormulaPolicyTest {
         assertTrue(reason.contains("百分比"))
         assertTrue(reason.contains("0.08"))
     }
+
+    @Test
+    fun explainsFullWidthPercentLiteralsAsDecimals() {
+        val reason = QuantFormulaPolicy.rejectionReason("abs(close - ma20) / ma20 < 8％")!!
+
+        assertTrue(reason.contains("百分比"))
+        assertTrue(reason.contains("0.08"))
+    }
 }
