@@ -10,6 +10,7 @@ import io.github.leonarddon.quanttrading.model.QuantDiagnosticPolicy
 import io.github.leonarddon.quanttrading.model.QuantDiagnosticReport
 import io.github.leonarddon.quanttrading.model.QuantSignal
 import io.github.leonarddon.quanttrading.model.QuantFormulaPolicy
+import io.github.leonarddon.quanttrading.model.StrategyFormulaPolicy
 import io.github.leonarddon.quanttrading.model.Strategy
 import io.github.leonarddon.quanttrading.model.StockInfo
 import io.github.leonarddon.quanttrading.network.MarketDataResult
@@ -341,10 +342,10 @@ class QuantViewModel : ViewModel() {
     }
 
     private fun estimateCustomMetrics(formula: String): CustomMetrics {
-        val normalized = formula.lowercase()
-        val factorCount = listOf("ma", "volume", "turnover", "pe", "pb", "close")
-            .count { normalized.contains(it) }
-            .coerceAtLeast(1)
+        // Factor count is derived from the parsed AST's distinct indicators rather than
+        // raw substring matching, so it reflects the formula's real structure.
+        val indicators = StrategyFormulaPolicy.referencedIndicators(formula)
+        val factorCount = indicators.size.coerceAtLeast(1)
         val complexity = (formula.count { it == '&' || it == '|' || it == '<' || it == '>' } / 2)
             .coerceIn(1, 5)
         val base = 50.0 + factorCount * 1.4 + complexity * 0.8
