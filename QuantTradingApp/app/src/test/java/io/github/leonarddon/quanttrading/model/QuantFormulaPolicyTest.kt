@@ -105,4 +105,9 @@ class QuantFormulaPolicyTest {
         assertTrue(reason.contains("("))
         assertTrue(reason.contains(")"))
     }
+
+    @Test
+    fun acceptsFullWidthSpacesAsWhitespace() {
+        assertNull(QuantFormulaPolicy.rejectionReason("close　>　ma20"))
+    }
 }

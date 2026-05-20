@@ -10,7 +10,6 @@ package io.github.leonarddon.quanttrading.model
  * rejection and clearer error reporting.
  */
 object QuantFormulaPolicy {
-    private val allowed = Regex("^[a-zA-Z0-9_().+\\-*/<>=!&|\\s]+$")
     private const val SUPPORTED_CHARACTER_MESSAGE =
         "公式仅支持英文变量、数字、空格和 + - * / < > = ! & | ( ) _。"
 
@@ -21,7 +20,7 @@ object QuantFormulaPolicy {
     fun rejectionReason(formula: String): String? {
         if (formula.isBlank()) return "公式不能为空。"
         if (formula.length > MAX_LENGTH) return "公式长度超过 $MAX_LENGTH 字符上限。"
-        if (!allowed.matches(formula)) {
+        if (formula.any { !isSupportedCharacter(it) }) {
             return unsupportedCharacterReason(formula)
         }
         val (_, error) = StrategyFormulaPolicy.parseDetailed(formula)
