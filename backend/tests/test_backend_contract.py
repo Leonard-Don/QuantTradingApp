@@ -41,6 +41,37 @@ def create_order(client: TestClient, token: str, client_order_id: str, tier: str
     return response.json()
 
 
+CALLBACK_SECRET = "test-callback-secret"
+
+
+def signed_callback_body(order: dict, provider_tx: str, event_type: str = "PAID") -> dict:
+    amount = order["amountCents"]
+    timestamp = int(time.time() * 1000)
+    message = f"{timestamp}:{order['orderId']}:{provider_tx}:{amount}:{event_type}"
+    signature = hmac.new(CALLBACK_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()
+    return {
+        "orderId": order["orderId"],
+        "providerTransactionId": provider_tx,
+        "amountCents": amount,
+        "eventType": event_type,
+        "timestamp": timestamp,
+        "signature": signature,
+    }
+
+
+def post_callback(
+    client: TestClient,
+    order: dict,
+    provider_tx: str,
+    channel: str = "WECHAT",
+    event_type: str = "PAID",
+):
+    return client.post(
+        f"/v1/payment/callbacks/{channel}",
+        json=signed_callback_body(order, provider_tx, event_type),
+    )
+
+
 def test_register_login_refresh_and_initial_entitlements(tmp_path):
     client = TestClient(create_app(str(tmp_path / "test.db")))
 
@@ -88,7 +119,8 @@ def test_register_rejects_invalid_phone(tmp_path):
     assert response.status_code == 422
 
 
-def test_order_payment_callback_extends_stock_entitlement(tmp_path):
+def test_order_payment_callback_extends_stock_entitlement(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
 
@@ -109,15 +141,7 @@ def test_order_payment_callback_extends_stock_entitlement(tmp_path):
     assert order["amountCents"] == 6800
     assert order["paymentPayload"]["sandbox"] is True
 
-    paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": order["orderId"],
-            "providerTransactionId": "provider-tx-1",
-            "amountCents": 6800,
-            "sandboxApproved": True,
-        },
-    )
+    paid = post_callback(client, order, "provider-tx-1")
     assert paid.status_code == 200
     assert paid.json()["status"] == "PAID"
     assert paid.json()["stockVipExpireTime"] > 0
@@ -139,70 +163,36 @@ def test_order_payment_callback_extends_stock_entitlement(tmp_path):
     assert orders.json()[0]["status"] == "PAID"
 
 
-def test_payment_callback_is_idempotent_but_rejects_duplicate_provider_transaction(tmp_path):
+def test_payment_callback_is_idempotent_but_rejects_duplicate_provider_transaction(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
 
     first_order = create_order(client, auth["accessToken"], "client-order-dup-1")
-    first_paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": first_order["orderId"],
-            "providerTransactionId": "provider-tx-dup",
-            "amountCents": first_order["amountCents"],
-        },
-    )
+    first_paid = post_callback(client, first_order, "provider-tx-dup")
     assert first_paid.status_code == 200
 
-    first_retry = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": first_order["orderId"],
-            "providerTransactionId": "provider-tx-dup",
-            "amountCents": first_order["amountCents"],
-        },
-    )
+    first_retry = post_callback(client, first_order, "provider-tx-dup")
     assert first_retry.status_code == 200
     assert first_retry.json()["stockVipExpireTime"] == first_paid.json()["stockVipExpireTime"]
 
     second_order = create_order(client, auth["accessToken"], "client-order-dup-2")
-    second_paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": second_order["orderId"],
-            "providerTransactionId": "provider-tx-dup",
-            "amountCents": second_order["amountCents"],
-        },
-    )
+    second_paid = post_callback(client, second_order, "provider-tx-dup")
     assert second_paid.status_code == 409
     assert second_paid.json()["detail"] == "duplicate provider transaction id"
 
 
-def test_refund_reduces_entitlement_and_keeps_audit_state(tmp_path):
+def test_refund_reduces_entitlement_and_keeps_audit_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-refund")
 
-    paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": order["orderId"],
-            "providerTransactionId": "provider-tx-refund-pay",
-            "amountCents": order["amountCents"],
-        },
-    )
+    paid = post_callback(client, order, "provider-tx-refund-pay")
     assert paid.status_code == 200
     assert paid.json()["stockVipExpireTime"] > 0
 
-    refunded = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": order["orderId"],
-            "providerTransactionId": "provider-tx-refund",
-            "amountCents": order["amountCents"],
-            "eventType": "REFUNDED",
-        },
-    )
+    refunded = post_callback(client, order, "provider-tx-refund", event_type="REFUNDED")
     assert refunded.status_code == 200
     assert refunded.json()["status"] == "REFUNDED"
     assert refunded.json()["stockVipExpireTime"] == 0
@@ -216,31 +206,19 @@ def test_refund_reduces_entitlement_and_keeps_audit_state(tmp_path):
     assert status.json()["paidAt"] is not None
 
 
-def test_order_list_tracks_pending_paid_and_cancelled_statuses(tmp_path):
+def test_order_list_tracks_pending_paid_and_cancelled_statuses(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
 
     pending_order = create_order(client, auth["accessToken"], "client-order-list-pending")
     paid_order = create_order(client, auth["accessToken"], "client-order-list-paid", tier="QUANT")
 
-    paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": paid_order["orderId"],
-            "providerTransactionId": "provider-tx-list-paid",
-            "amountCents": paid_order["amountCents"],
-        },
-    )
+    paid = post_callback(client, paid_order, "provider-tx-list-paid")
     assert paid.status_code == 200
 
-    cancelled = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": pending_order["orderId"],
-            "providerTransactionId": "provider-tx-list-cancelled",
-            "amountCents": pending_order["amountCents"],
-            "eventType": "CANCELLED",
-        },
+    cancelled = post_callback(
+        client, pending_order, "provider-tx-list-cancelled", event_type="CANCELLED"
     )
     assert cancelled.status_code == 200
 
@@ -275,18 +253,12 @@ def test_admin_audit_rejects_invalid_token(tmp_path, monkeypatch):
 
 def test_admin_audit_returns_read_only_snapshot_and_html_page(tmp_path, monkeypatch):
     monkeypatch.setenv("QUANTTRADING_ADMIN_TOKEN", "admin-secret")
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
     order = create_order(client, auth["accessToken"], "client-order-admin")
 
-    paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": order["orderId"],
-            "providerTransactionId": "provider-tx-admin",
-            "amountCents": order["amountCents"],
-        },
-    )
+    paid = post_callback(client, order, "provider-tx-admin")
     assert paid.status_code == 200
 
     snapshot = client.get("/v1/admin/audit?limit=10", headers={"X-Admin-Token": "admin-secret"})
@@ -308,7 +280,8 @@ def test_admin_audit_returns_read_only_snapshot_and_html_page(tmp_path, monkeypa
     assert "13800000000" in html.text
 
 
-def test_market_proxy_requires_vip_and_returns_not_configured_contract(tmp_path):
+def test_market_proxy_requires_vip_and_returns_not_configured_contract(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     client = TestClient(create_app(str(tmp_path / "test.db")))
     auth = register(client)
 
@@ -319,14 +292,7 @@ def test_market_proxy_requires_vip_and_returns_not_configured_contract(tmp_path)
     assert locked.status_code == 403
 
     order = create_order(client, auth["accessToken"], "client-order-market")
-    paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": order["orderId"],
-            "providerTransactionId": "provider-tx-market",
-            "amountCents": order["amountCents"],
-        },
-    )
+    paid = post_callback(client, order, "provider-tx-market")
     assert paid.status_code == 200
 
     proxy = client.get(
@@ -337,6 +303,64 @@ def test_market_proxy_requires_vip_and_returns_not_configured_contract(tmp_path)
     assert proxy.json()["status"] == "not_configured"
     assert proxy.json()["data"] == []
     assert "不构成投资建议" in proxy.json()["disclaimer"]
+
+
+def test_payment_callback_rejects_unsigned_callback_when_secret_unset(tmp_path, monkeypatch):
+    # Security: payment callbacks must fail closed. With no callback secret
+    # configured, an unsigned callback must be rejected, not silently accepted
+    # - otherwise anyone who knows an orderId can forge a PAID callback and
+    # grant themselves VIP for free. The unsigned path is reachable only via an
+    # explicit QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE=0 opt-out.
+    monkeypatch.delenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", raising=False)
+    monkeypatch.delenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", raising=False)
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+    order = create_order(client, auth["accessToken"], "client-order-unsigned")
+
+    forged = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-forged",
+            "amountCents": order["amountCents"],
+        },
+    )
+    assert forged.status_code == 401, (
+        "an unsigned callback must be rejected when no callback secret is "
+        f"configured; got status={forged.status_code}, body={forged.text!r}"
+    )
+
+    entitlement = client.get(
+        "/v1/me/entitlements",
+        headers=auth_headers(auth["accessToken"]),
+    )
+    assert entitlement.status_code == 200
+    assert entitlement.json()["stockVipExpireTime"] == 0, (
+        "a rejected payment callback must not grant any VIP entitlement"
+    )
+
+
+def test_payment_callback_unsigned_path_allowed_only_with_explicit_opt_out(tmp_path, monkeypatch):
+    # The unsigned callback path stays available for local/dev use, but only
+    # when an operator explicitly opts in. This guards the escape hatch so a
+    # future change neither silently removes local-dev usability nor lets the
+    # insecure default creep back.
+    monkeypatch.delenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", raising=False)
+    monkeypatch.setenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "0")
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+    order = create_order(client, auth["accessToken"], "client-order-optout")
+
+    paid = client.post(
+        "/v1/payment/callbacks/WECHAT",
+        json={
+            "orderId": order["orderId"],
+            "providerTransactionId": "provider-tx-optout",
+            "amountCents": order["amountCents"],
+        },
+    )
+    assert paid.status_code == 200
+    assert paid.json()["status"] == "PAID"
 
 
 def test_payment_callback_signature_can_be_required(tmp_path, monkeypatch):
@@ -501,7 +525,7 @@ def test_rate_limit_returns_429_after_burst(tmp_path):
     assert statuses.count(429) >= 1
 
 
-def test_grace_until_is_zero_for_never_paid_user_and_extends_after_payment(tmp_path):
+def test_grace_until_is_zero_for_never_paid_user_and_extends_after_payment(tmp_path, monkeypatch):
     # backend/app/main.py:418 computes
     #   graceUntil = latest_expiry + GRACE_MILLIS if latest_expiry > 0 else 0
     # The `else 0` branch is load-bearing: a naive simplification to
@@ -528,15 +552,9 @@ def test_grace_until_is_zero_for_never_paid_user_and_extends_after_payment(tmp_p
         f"got {initial_body['graceUntil']}"
     )
 
+    monkeypatch.setenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", CALLBACK_SECRET)
     order = create_order(client, auth["accessToken"], "client-order-grace")
-    paid = client.post(
-        "/v1/payment/callbacks/WECHAT",
-        json={
-            "orderId": order["orderId"],
-            "providerTransactionId": "provider-tx-grace",
-            "amountCents": order["amountCents"],
-        },
-    )
+    paid = post_callback(client, order, "provider-tx-grace")
     assert paid.status_code == 200
 
     after = client.get(
@@ -647,3 +665,218 @@ def test_create_order_enforces_same_device_id_bounds_as_auth_requests(tmp_path):
         "min_length boundary; "
         f"got status={boundary.status_code}, body={boundary.text!r}"
     )
+
+
+def test_concurrent_paid_callbacks_extend_entitlement_only_once(tmp_path, monkeypatch):
+    # Two PAID callbacks for the same order arriving concurrently must extend
+    # the entitlement exactly once. sandbox_payment_callback reads the order
+    # status, then later reads and rewrites the entitlement; without a write
+    # lock taken up front, the second callback can pass a stale PENDING status
+    # check and then read the entitlement the first callback already extended,
+    # doubling the granted VIP window. verify_callback_signature is replaced
+    # with a one-sided gate so the damaging interleaving is forced
+    # deterministically instead of depending on thread timing.
+    import threading
+
+    from app.main import (
+        DAY_MILLIS,
+        BackendStore,
+        OrderRequest,
+        PaymentCallbackRequest,
+        now_millis,
+    )
+
+    b_at_gate = threading.Event()
+    b_may_proceed = threading.Event()
+    call_lock = threading.Lock()
+    calls = {"n": 0}
+
+    def gated_verify(request):
+        with call_lock:
+            is_first = calls["n"] == 0
+            calls["n"] += 1
+        if is_first:
+            # Thread B: pause between the order-status read and the
+            # entitlement read until the other callback has fully committed.
+            b_at_gate.set()
+            assert b_may_proceed.wait(timeout=5), "concurrency gate never released"
+
+    monkeypatch.setattr("app.main.verify_callback_signature", gated_verify)
+
+    store = BackendStore(str(tmp_path / "test.db"))
+    auth = store.create_user("用户", "13800000000", "passw0rd", "device-1")
+    order = store.create_order(
+        auth.userId,
+        OrderRequest(
+            tier="STOCK",
+            durationDays=31,
+            channel="WECHAT",
+            clientOrderId="client-order-concurrent",
+            deviceId="device-1",
+        ),
+    )
+
+    results = {}
+    errors = {}
+
+    def run(name):
+        request = PaymentCallbackRequest(
+            orderId=order.orderId,
+            providerTransactionId="provider-tx-concurrent",
+            amountCents=order.amountCents,
+            sandboxApproved=True,
+        )
+        try:
+            results[name] = store.sandbox_payment_callback("WECHAT", request)
+        except Exception as exc:  # surfaced via the errors assertion below
+            errors[name] = exc
+
+    start = now_millis()
+    thread_b = threading.Thread(target=run, args=("B",))
+    thread_b.start()
+    assert b_at_gate.wait(timeout=5), "thread B never reached the gate"
+
+    thread_a = threading.Thread(target=run, args=("A",))
+    thread_a.start()
+    # Give thread A time to either finish (no up-front lock) or block on the
+    # write lock (lock taken up front), then let thread B continue.
+    thread_a.join(timeout=1.0)
+    b_may_proceed.set()
+    thread_a.join(timeout=5)
+    thread_b.join(timeout=5)
+
+    assert not errors, f"concurrent callbacks raised: {errors}"
+    assert not thread_a.is_alive() and not thread_b.is_alive(), "callback thread hung"
+    assert results["A"].status == "PAID" and results["B"].status == "PAID"
+
+    entitlement = store.entitlements(auth.userId)
+    one_grant_ceiling = start + 32 * DAY_MILLIS
+    assert start + 31 * DAY_MILLIS <= entitlement.stockVipExpireTime < one_grant_ceiling, (
+        "two concurrent PAID callbacks for one order must grant ~31 days once; "
+        "a double grant lands near 62 days. "
+        f"got stockVipExpireTime={entitlement.stockVipExpireTime}, "
+        f"single-grant window=[{start + 31 * DAY_MILLIS}, {one_grant_ceiling})"
+    )
+
+
+def test_hot_lookup_columns_are_indexed(tmp_path):
+    import sqlite3
+
+    db_path = str(tmp_path / "test.db")
+    create_app(db_path)
+    connection = sqlite3.connect(db_path)
+    try:
+        index_names = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index'"
+            )
+        }
+    finally:
+        connection.close()
+
+    for expected in (
+        "idx_orders_user_id",
+        "idx_orders_provider_tx",
+        "idx_payment_callbacks_order_id",
+    ):
+        assert expected in index_names, (
+            f"hot lookup column index {expected} is missing; "
+            f"existing indexes: {sorted(index_names)}"
+        )
+
+
+def test_refresh_token_is_single_use_and_rotates(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+
+    rotated = client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": auth["refreshToken"], "deviceId": "device-1"},
+    )
+    assert rotated.status_code == 200
+
+    replay = client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": auth["refreshToken"], "deviceId": "device-1"},
+    )
+    assert replay.status_code == 401, (
+        "the original refresh token must be revoked once it has been used; "
+        f"got status={replay.status_code}"
+    )
+
+    again = client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": rotated.json()["refreshToken"], "deviceId": "device-1"},
+    )
+    assert again.status_code == 200, "the freshly issued refresh token must still work"
+
+
+def test_expired_refresh_token_is_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.main.REFRESH_TOKEN_TTL_MILLIS", -1000)
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+
+    response = client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": auth["refreshToken"], "deviceId": "device-1"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "refresh token expired"
+
+
+def test_logout_revokes_the_access_and_refresh_tokens(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "test.db")))
+    auth = register(client)
+
+    assert (
+        client.get("/v1/me/entitlements", headers=auth_headers(auth["accessToken"])).status_code
+        == 200
+    )
+
+    logout = client.post("/v1/auth/logout", headers=auth_headers(auth["accessToken"]))
+    assert logout.status_code == 200
+    assert logout.json()["status"] == "logged_out"
+
+    assert (
+        client.get("/v1/me/entitlements", headers=auth_headers(auth["accessToken"])).status_code
+        == 401
+    ), "the access token must stop working after logout"
+
+    refresh = client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": auth["refreshToken"], "deviceId": "device-1"},
+    )
+    assert refresh.status_code == 401, "the refresh token must stop working after logout"
+
+
+def test_sessions_table_migrates_when_refresh_expiry_column_is_missing(tmp_path):
+    import sqlite3
+
+    db_path = str(tmp_path / "legacy.db")
+    # A database created before refresh_expires_at existed: opening the app
+    # against it must add the column, not crash on the next session INSERT.
+    legacy = sqlite3.connect(db_path)
+    legacy.executescript(
+        """
+        CREATE TABLE sessions (
+            refresh_token TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            access_token TEXT NOT NULL UNIQUE,
+            device_id TEXT NOT NULL,
+            expires_at INTEGER NOT NULL
+        );
+        """
+    )
+    legacy.close()
+
+    client = TestClient(create_app(db_path))
+    auth = register(client)
+    assert auth["userId"].startswith("usr_")
+
+    connection = sqlite3.connect(db_path)
+    try:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
+    finally:
+        connection.close()
+    assert "refresh_expires_at" in columns

@@ -23,6 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 DAY_MILLIS = 24 * 60 * 60 * 1000
 ACCESS_TOKEN_TTL_MILLIS = 2 * 60 * 60 * 1000
+REFRESH_TOKEN_TTL_MILLIS = 30 * DAY_MILLIS
 GRACE_MILLIS = 7 * DAY_MILLIS
 CALLBACK_TIMESTAMP_WINDOW_MILLIS = 5 * 60 * 1000
 DEFAULT_DB_PATH = Path(__file__).resolve().parents[1] / "data" / "quanttrading.db"
@@ -286,7 +287,8 @@ class BackendStore:
                     user_id TEXT NOT NULL,
                     access_token TEXT NOT NULL UNIQUE,
                     device_id TEXT NOT NULL,
-                    expires_at INTEGER NOT NULL
+                    expires_at INTEGER NOT NULL,
+                    refresh_expires_at INTEGER NOT NULL DEFAULT 0
                 );
 
                 CREATE TABLE IF NOT EXISTS entitlements (
@@ -324,7 +326,21 @@ class BackendStore:
                     detail TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 );
+
+                CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+                CREATE INDEX IF NOT EXISTS idx_orders_provider_tx
+                    ON orders(provider_transaction_id);
+                CREATE INDEX IF NOT EXISTS idx_payment_callbacks_order_id
+                    ON payment_callbacks(order_id);
                 """
+            )
+            self._migrate_sessions_refresh_expiry(conn)
+
+    def _migrate_sessions_refresh_expiry(self, conn: sqlite3.Connection) -> None:
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(sessions)")}
+        if "refresh_expires_at" not in columns:
+            conn.execute(
+                "ALTER TABLE sessions ADD COLUMN refresh_expires_at INTEGER NOT NULL DEFAULT 0"
             )
 
     def create_user(self, display_name: str, phone: str, password: str, device_id: str) -> AuthResponse:
@@ -355,11 +371,20 @@ class BackendStore:
     def create_session(self, user_id: str, device_id: str) -> AuthResponse:
         access_token = f"atk_{secrets.token_urlsafe(32)}"
         refresh_token = f"rtk_{secrets.token_urlsafe(32)}"
-        expires_at = now_millis() + ACCESS_TOKEN_TTL_MILLIS
+        now = now_millis()
+        expires_at = now + ACCESS_TOKEN_TTL_MILLIS
+        refresh_expires_at = now + REFRESH_TOKEN_TTL_MILLIS
         with self.connect() as conn:
+            # Drop this user's fully expired sessions so the table cannot grow
+            # without bound across repeated logins.
             conn.execute(
-                "INSERT INTO sessions(refresh_token, user_id, access_token, device_id, expires_at) VALUES (?, ?, ?, ?, ?)",
-                (refresh_token, user_id, access_token, device_id, expires_at),
+                "DELETE FROM sessions WHERE user_id = ? AND refresh_expires_at < ?",
+                (user_id, now),
+            )
+            conn.execute(
+                "INSERT INTO sessions(refresh_token, user_id, access_token, device_id, "
+                "expires_at, refresh_expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (refresh_token, user_id, access_token, device_id, expires_at, refresh_expires_at),
             )
         return AuthResponse(
             userId=user_id,
@@ -374,9 +399,21 @@ class BackendStore:
                 "SELECT * FROM sessions WHERE refresh_token = ? AND device_id = ?",
                 (refresh_token, device_id),
             ).fetchone()
-        if session is None:
-            raise HTTPException(status_code=401, detail="invalid refresh token")
+            if session is None:
+                raise HTTPException(status_code=401, detail="invalid refresh token")
+            if session["refresh_expires_at"] < now_millis():
+                raise HTTPException(status_code=401, detail="refresh token expired")
+            # A refresh token is single-use: delete it so a leaked or replayed
+            # token cannot mint a second session.
+            conn.execute("DELETE FROM sessions WHERE refresh_token = ?", (refresh_token,))
         return self.create_session(session["user_id"], device_id)
+
+    def logout(self, authorization: Optional[str]) -> dict[str, str]:
+        user_id = self.require_user(authorization)
+        token = (authorization or "").removeprefix("Bearer ").strip()
+        with self.connect() as conn:
+            conn.execute("DELETE FROM sessions WHERE access_token = ?", (token,))
+        return {"status": "logged_out", "userId": user_id}
 
     def delete_user(self, user_id: str) -> dict[str, str]:
         with self.connect() as conn:
@@ -599,6 +636,12 @@ class BackendStore:
         if not request.sandboxApproved:
             raise HTTPException(status_code=400, detail="sandbox payment not approved")
         with self.connect() as conn:
+            # Serialize the whole read-check-write so two concurrent callbacks
+            # for the same order cannot both pass the status / duplicate-tx
+            # checks and double grant entitlements. BEGIN IMMEDIATE takes the
+            # write lock up front; a concurrent callback blocks here until this
+            # one commits, then observes the already-updated PAID status.
+            conn.execute("BEGIN IMMEDIATE")
             order = conn.execute("SELECT * FROM orders WHERE order_id = ?", (request.orderId,)).fetchone()
             if order is None:
                 raise HTTPException(status_code=404, detail="order not found")
@@ -980,6 +1023,10 @@ def create_app(
     def refresh(request: RefreshRequest) -> AuthResponse:
         return store.refresh_session(request.refreshToken, request.deviceId)
 
+    @app.post("/v1/auth/logout")
+    def logout(authorization: Optional[str] = Header(default=None)) -> dict[str, str]:
+        return store.logout(authorization)
+
     @app.get("/v1/me/entitlements", response_model=EntitlementResponse)
     def entitlements(user_id: str = Depends(current_user)) -> EntitlementResponse:
         return store.entitlements(user_id)
@@ -1054,7 +1101,11 @@ def hash_password(password: str, salt: str) -> str:
 
 def verify_callback_signature(request: PaymentCallbackRequest) -> None:
     secret = os.getenv("QUANTTRADING_PAYMENT_CALLBACK_SECRET", "")
-    require_signature = os.getenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "0") == "1"
+    # Fail closed: an unsigned payment callback must never grant entitlements.
+    # The unsigned path is reachable only when an operator explicitly opts in
+    # with QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE=0 (local/dev use only); any
+    # other value, including unset, requires a verified signature.
+    require_signature = os.getenv("QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE", "1") != "0"
     if not secret:
         if require_signature:
             raise HTTPException(status_code=401, detail="payment callback secret is not configured")
