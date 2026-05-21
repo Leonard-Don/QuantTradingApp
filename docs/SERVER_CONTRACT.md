@@ -29,7 +29,7 @@ Response:
 ```json
 {
   "userId": "usr_123",
-  "accessToken": "jwt",
+  "accessToken": "opaque-access-token",
   "refreshToken": "opaque-refresh-token",
   "expiresAt": 1770000000000
 }
@@ -54,9 +54,25 @@ Response:
 
 ```json
 {
-  "accessToken": "jwt",
+  "userId": "usr_123",
+  "accessToken": "opaque-access-token",
   "refreshToken": "opaque-refresh-token",
   "expiresAt": 1770000000000
+}
+```
+
+A refresh token is single-use: a successful refresh rotates it and revokes the one just used. Refresh tokens also expire 30 days after issue. An expired or already-used refresh token returns `401`.
+
+### POST `/v1/auth/logout`
+
+Revokes the caller's session — both the access token and its paired refresh token. Requires the `Authorization: Bearer <accessToken>` header.
+
+Response:
+
+```json
+{
+  "status": "logged_out",
+  "userId": "usr_123"
 }
 ```
 
@@ -126,12 +142,10 @@ Response:
   "channel": "WECHAT",
   "status": "PENDING",
   "paymentPayload": {
-    "appId": "merchant-app-id",
-    "partnerId": "merchant-id",
-    "prepayId": "prepay-id",
-    "nonceStr": "nonce",
-    "timestamp": "1770000000",
-    "sign": "signature"
+    "sandbox": true,
+    "orderId": "ord_123",
+    "channel": "WECHAT",
+    "note": "Sandbox payload. Replace with provider SDK payload after merchant setup."
   }
 }
 ```
@@ -177,7 +191,8 @@ Sandbox request shape:
   "amountCents": 6800,
   "eventType": "PAID",
   "sandboxApproved": true,
-  "signature": "optional-hmac"
+  "timestamp": 1770000000000,
+  "signature": "hmac-sha256-hex"
 }
 ```
 
@@ -191,7 +206,7 @@ Backend requirements:
 - Persist callback audit events.
 - Persist audit events for paid, refunded, chargeback, and cancelled states.
 
-Current local backend scaffold supports sandbox `PAID`, `REFUNDED`, and `CANCELLED` events, optional HMAC via `QUANTTRADING_PAYMENT_CALLBACK_SECRET`, duplicate provider transaction rejection, and callback audit rows. Production WeChat/Alipay native signature verification is still a merchant-credential task.
+Current local backend scaffold supports sandbox `PAID`, `REFUNDED`, and `CANCELLED` events, HMAC-SHA256 signature verification via `QUANTTRADING_PAYMENT_CALLBACK_SECRET` (fail-closed — a verified signature is required by default and the signed message carries a timestamp inside a replay window; the unsigned path is reachable only with an explicit `QUANTTRADING_REQUIRE_CALLBACK_SIGNATURE=0` opt-out for local/dev use), duplicate provider transaction rejection, and callback audit rows. Production WeChat/Alipay native signature verification is still a merchant-credential task.
 
 ## Admin Audit
 

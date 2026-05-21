@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-基于 Kotlin + Material Design 3 的纯股票分析工具，完全合规，无实盘交易入口。
+基于 Kotlin + Material Design 3 的纯股票分析工具，无实盘交易入口、不接入券商交易通道（合规边界见“合规红线”）。
 
 ## 功能模块
 
@@ -118,23 +118,32 @@ QuantTradingApp/
 
 ## 项目状态
 
-**v1.0.0 代码侧收口** (2026-05-16) — feature development frozen on the codebase side.
+**代码侧脚手架已收口，但项目尚未达到付费上架标准。** 代码侧已冻结（不再加新功能）；项目的 Go / No-Go 判定以 [docs/COMMERCIALIZATION_GAP.md](docs/COMMERCIALIZATION_GAP.md) 与 [docs/RELEASE_CANDIDATE_SUMMARY.md](docs/RELEASE_CANDIDATE_SUMMARY.md) 为准。
 
-Quant 交易台的代码已经到达"等待上架"的稳定状态：所有功能模块、合规约束、付费闸门、签名管道、QA 验证脚本都已完成，剩下的事情**都是运营 / Ops 工作，不再需要写代码**。
+当前定位：可用于本地 MVP 演示与 Android 内测，**不可用于真实付费订阅或商店提交**。功能模块、合规约束、付费闸门、签名管道、QA 脚本的**代码侧脚手架**已完成，但距离付费上架仍有多项 **No-go** 关卡未完成（见下）；其中生产微信 / 支付宝回调签名校验等仍属代码工作，并非纯运营任务。
 
-### 代码侧已完成（不再迭代）
+### 代码侧脚手架已完成
 
 - **多源行情接入**：腾讯主源 + 新浪 / 东方财富备源，缓存降级展示明确标注时效。所有 quote provider 经 PR #5–#16 完成 non-finite 值清洗
 - **量化回测**：东方财富日线样本，按公式解析器信号、收盘价全仓进出、单边成本估算历史指标；多标的组合回测按归一化权重合成曲线，研究参考口径
 - **复盘页市场温度模型**：宽度 / 成交额方向 / 板块扩散 / 自选池一致性 / 指数联动 / 风险项 / 研究动作；历史快照对比 + 每日研究简报联动
-- **后端契约**：FastAPI + SQLite (Postgres-ready)，覆盖 auth / token refresh / entitlements / order status / refunds / payment callbacks (HMAC-SHA256) / admin audit / 高级数据代理占位
+- **后端契约**：FastAPI + SQLite（单文件；代码直接依赖 sqlite3、尚未抽象为 Postgres，生产部署需自带持久化盘），覆盖 auth / token refresh / entitlements / order status / refunds / payment callbacks（HMAC-SHA256，默认强制签名校验）/ admin audit / 高级数据代理占位
 - **付费闸门**：`scripts/verify_paid_release_config.sh` 检查生产 API + 强制服务端权益 + 签名 + 法律 URL + 客服邮箱；未配置外部资源时主动失败
 - **签名管道**：通过 `release.env` 外部注入 keystore；`*.jks` 已加 `.gitignore`，本地秘密文件不会被提交
 - **R8 混淆 + 资源压缩**：release 构建已开启；`ALLOW_LOCAL_PAYMENT_SIMULATION=false` 在 release 中强制
 - **合规姿态守住**：grep 验证仓库 zero 个 broker SDK / trading entry / order-placement 接口（详见"合规红线"段）
-- **完整 PIPL-compliant 法律文档**：[docs/legal/PRIVACY_POLICY.md](docs/legal/PRIVACY_POLICY.md)、[docs/legal/TERMS_OF_SERVICE.md](docs/legal/TERMS_OF_SERVICE.md)、[docs/legal/DATA_SOURCE_DISCLAIMER.md](docs/legal/DATA_SOURCE_DISCLAIMER.md)
+- **PIPL 对齐的法律文档草案**（仍含 `【上架前由运营方填写】` 占位符，上架前必须填写）：[docs/legal/PRIVACY_POLICY.md](docs/legal/PRIVACY_POLICY.md)、[docs/legal/TERMS_OF_SERVICE.md](docs/legal/TERMS_OF_SERVICE.md)、[docs/legal/DATA_SOURCE_DISCLAIMER.md](docs/legal/DATA_SOURCE_DISCLAIMER.md)
 - **GitHub Pages 自动渲染**：`.github/workflows/legal-docs-pages.yml` ready，启用 GitHub Pages 即生效
 - **发布运营文档完整**：[docs/RELEASE_USER_CHECKLIST.md](docs/RELEASE_USER_CHECKLIST.md) 10 步、[docs/RELEASE_BLOCKERS.md](docs/RELEASE_BLOCKERS.md) 实测 gate 输出、[docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md) keystore 配方
+
+### 仍未完成 / No-go（摘自 docs/COMMERCIALIZATION_GAP.md）
+
+- **真实支付** — 后端仅 sandbox 订单 / 回调脚手架，未接入微信 / 支付宝商户回调
+- **服务端权益** — source-of-truth 脚手架存在，生产 API 未部署
+- **市场数据授权** — 仅公开 / 免费数据源，无授权数据合约（影响付费数据宣称）
+- **法律文档** — 仅草案，含未填占位符；商店提交前需填写并发布正式 URL
+- **签名 / AAB** — 仅未签名包，签名凭据未配置
+- **真机 QA / 商店截图** — `docs/MANUAL_QA_MATRIX.md` 尚未填写，无真机 QA 记录与商店截图
 
 ### 代码侧不再接受新功能
 
@@ -145,7 +154,7 @@ Quant 交易台的代码已经到达"等待上架"的稳定状态：所有功能
 
 ### 你（运营方）要做的事情都在 RELEASE_USER_CHECKLIST.md
 
-剩下的 4 类工作**全部需要你的判断或秘密**，**不需要碰代码**：
+剩下的工作主要需要运营方的判断或秘密（法律主体信息、keystore、商户凭据）；此外生产微信 / 支付宝回调签名校验仍需后端补完代码：
 
 1. **填法律文档占位符** — 3 份 `docs/legal/*.md` 里的 `【上架前由运营方填写】`（运营主体、地址、support 邮箱）
 2. **启用 GitHub Pages** — Settings → Pages → Source = GitHub Actions，触发 `legal-docs-pages.yml` 工作流
