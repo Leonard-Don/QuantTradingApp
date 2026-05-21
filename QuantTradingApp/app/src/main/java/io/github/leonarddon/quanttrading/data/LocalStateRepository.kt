@@ -22,7 +22,6 @@ import io.github.leonarddon.quanttrading.network.BackendEntitlementResponse
 import io.github.leonarddon.quanttrading.network.BackendOrderStatusResponse
 import io.github.leonarddon.quanttrading.network.QuantTradingBackendRepository
 import io.github.leonarddon.quanttrading.payment.PaymentChannel
-import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
 
@@ -128,7 +127,7 @@ object LocalStateRepository {
         val localState = current.copy(
             displayName = displayName.ifBlank { "本机用户" },
             phone = phone,
-            passwordHash = if (backendSync.success) null else hashPassword(phone, password),
+            passwordHash = if (backendSync.success) null else PasswordHasher.hash(password),
             isLoggedIn = true,
             createdAt = if (current.createdAt == 0L) now else current.createdAt,
             lastLoginAt = now
@@ -155,7 +154,8 @@ object LocalStateRepository {
             return true
         }
 
-        val matched = state.phone == phone && state.passwordHash == hashPassword(phone, password)
+        val matched = state.phone == phone &&
+            state.passwordHash?.let { PasswordHasher.verify(password, it) } == true
         if (matched) {
             db.userStateDao().save(
                 state.copy(
@@ -881,13 +881,6 @@ object LocalStateRepository {
 
     private fun formatSignedPercent(value: Double): String {
         return "${if (value >= 0) "+" else ""}${String.format(Locale.CHINA, "%.2f", value)}%"
-    }
-
-    private fun hashPassword(phone: String, password: String): String {
-        val input = "$phone:$password".toByteArray(Charsets.UTF_8)
-        return MessageDigest.getInstance("SHA-256")
-            .digest(input)
-            .joinToString("") { String.format(Locale.US, "%02x", it.toInt() and 0xff) }
     }
 
     private fun hasAnyVip(state: UserStateEntity): Boolean {
