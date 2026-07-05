@@ -104,3 +104,7 @@ scripts/verify_all.sh
 ## 公开仓库说明
 
 这个仓库已清理为适合公开展示的本机研究演示项目。旧的远端账号、发布运营和素材脚手架已移除。
+
+## 许可证
+
+MIT License. See [LICENSE](LICENSE).
