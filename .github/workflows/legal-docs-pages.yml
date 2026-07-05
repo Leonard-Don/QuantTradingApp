@@ -7,6 +7,12 @@ on:
       - 'docs/legal/**'
       - '.github/workflows/legal-docs-pages.yml'
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy to GitHub Pages. Enable Pages from repository settings first.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -82,6 +88,7 @@ jobs:
           path: _site
 
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy }}
     needs: build
     runs-on: ubuntu-latest
     environment:
