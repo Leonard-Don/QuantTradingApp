@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- P0 keeps dependency versions pinned; dependency modernization is a separate pass. -->
+    <issue id="GradleDependency" severity="ignore" />
+
+    <!-- Room still uses kapt for schema export in this baseline; KSP migration is a separate pass. -->
+    <issue id="KaptUsageInsteadOfKsp" severity="ignore" />
+
+    <!-- Adaptive launcher icons are kept in v26 because moving them broke AAPT resource linking. -->
+    <issue id="ObsoleteSdkInt" severity="ignore" />
+
+    <!-- targetSdk 35 is intentional for this release; bumping to the latest API is a separate pass. -->
+    <issue id="OldTargetApi" severity="ignore" />
+</lint>

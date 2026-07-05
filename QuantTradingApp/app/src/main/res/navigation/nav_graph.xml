@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_stock">
+
+    <fragment
+        android:id="@+id/nav_stock"
+        android:name="io.github.leonarddon.quanttrading.ui.stock.StockSelectFragment"
+        android:label="@string/tab_stock" />
+
+    <fragment
+        android:id="@+id/nav_review"
+        android:name="io.github.leonarddon.quanttrading.ui.review.ReviewFragment"
+        android:label="@string/tab_review" />
+
+    <fragment
+        android:id="@+id/nav_community"
+        android:name="io.github.leonarddon.quanttrading.ui.community.CommunityFragment"
+        android:label="@string/tab_community" />
+
+    <fragment
+        android:id="@+id/nav_quant"
+        android:name="io.github.leonarddon.quanttrading.ui.quant.QuantFragment"
+        android:label="@string/tab_quant" />
+
+</navigation>

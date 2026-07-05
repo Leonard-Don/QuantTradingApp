@@ -1,0 +1,42 @@
+name: Android P0
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  verify:
+    name: Verify QuantTradingApp
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        run: |
+          echo "JAVA_HOME=${JAVA_HOME_17_X64}" >> "${GITHUB_ENV}"
+          echo "${JAVA_HOME_17_X64}/bin" >> "${GITHUB_PATH}"
+          java -version
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install XML and Android SDK dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Verify P0
+        run: QuantTradingApp/scripts/verify_p0.sh
+
+      - name: Build demo APK
+        run: |
+          cd QuantTradingApp
+          ./gradlew :app:assembleDemo --console=plain
+
+      - name: Build release APK and AAB
+        run: QuantTradingApp/scripts/build_release_artifacts.sh

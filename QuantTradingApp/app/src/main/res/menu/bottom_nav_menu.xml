@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_stock"
+        android:icon="@drawable/ic_stock"
+        android:title="@string/tab_stock" />
+    <item
+        android:id="@+id/nav_review"
+        android:icon="@drawable/ic_review"
+        android:title="@string/tab_review" />
+    <item
+        android:id="@+id/nav_community"
+        android:icon="@drawable/ic_community"
+        android:title="@string/tab_community" />
+    <item
+        android:id="@+id/nav_quant"
+        android:icon="@drawable/ic_quant"
+        android:title="@string/tab_quant" />
+</menu>

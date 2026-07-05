@@ -1,0 +1,166 @@
+<resources>
+    <string name="app_name">Quant 交易台</string>
+    <string name="dialog_close">关闭</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="account_settings_entry">本机账号与设置</string>
+
+    <!-- Tabs -->
+    <string name="tab_stock">选股</string>
+    <string name="tab_review">复盘</string>
+    <string name="tab_community">社区</string>
+    <string name="tab_quant">量化</string>
+
+    <!-- Stock -->
+    <string name="search_stock_hint">搜索股票代码或名称</string>
+    <string name="advanced_filter">高级筛选</string>
+    <string name="stock_filter_conditions">筛选条件</string>
+    <string name="stock_filter_all">全部</string>
+    <string name="stock_filter_clear">清空筛选</string>
+    <string name="stock_filter_industry">行业</string>
+    <string name="stock_filter_market_cap">市值</string>
+    <string name="stock_filter_moving_average">均线</string>
+    <string name="stock_filter_capital">资金</string>
+    <string name="stock_filter_research_strategy">研究策略</string>
+    <string name="stock_empty_state">当前条件暂无可展示样本</string>
+    <string name="stock_filter_notice">筛选只基于当前行情池和可用字段，不代表全市场覆盖。</string>
+    <string name="stock_filter_min_change_hint">最低涨跌幅 (%)</string>
+    <string name="stock_filter_min_volume_hint">最低成交量 (股)</string>
+    <string name="stock_filter_min_turnover_hint">最低成交额 (亿)</string>
+    <string name="stock_filter_max_pe_hint">最高市盈率</string>
+    <string name="stock_filter_max_pb_hint">最高市净率</string>
+    <string name="stock_filter_min_market_cap_hint">最低市值 (亿)</string>
+    <string name="stock_change_percent">%1$s%%</string>
+    <string name="stock_turnover_summary">成交额 %1$s亿</string>
+    <string name="stock_volume_summary">成交量 %1$s</string>
+    <string name="stock_pe_summary">PE %1$s</string>
+    <string name="stock_pb_summary">PB %1$s</string>
+    <string name="stock_quote_summary_with_valuation">%1$s %2$s</string>
+    <string name="stock_moving_average_summary">MA5 %1$s · MA10 %2$s · MA20 %3$s</string>
+    <string name="stock_research_button">深度诊断</string>
+    <string name="stock_research_title">%1$s 深度诊断</string>
+    <string name="stock_board_headline">行情池概览：%1$d 只 · 成交额 %2$s亿</string>
+    <string name="stock_board_breadth">上涨 %1$d · 下跌 %2$d · 平盘 %3$d</string>
+    <string name="stock_board_gainers">涨幅榜：%1$s</string>
+    <string name="stock_board_losers">跌幅榜：%1$s</string>
+    <string name="stock_board_sectors">热门板块：%1$s</string>
+    <string name="stock_board_empty">暂无可用样本</string>
+    <string name="stock_detail_strength">指标强度：%1$d/100（%2$s）</string>
+    <string name="stock_detail_code_industry">%1$s · %2$s</string>
+    <string name="stock_detail_quote">行情数据：%1$s</string>
+    <string name="stock_detail_valuation">估值数据：%1$s</string>
+    <string name="stock_detail_liquidity">流动性：%1$s</string>
+    <string name="stock_detail_risk_title">风险雷达</string>
+    <string name="stock_detail_action_title">后续研究动作</string>
+    <string name="stock_detail_notice">说明：以上基于公开行情字段和本机股票池计算，只做研究记录，不构成投资建议或交易指令。</string>
+    <string name="stock_price_alert_button">目标价提醒</string>
+    <string name="price_alert_dialog_title">%1$s 目标价提醒</string>
+    <string name="price_alert_notice">提醒只保存在本机，用于研究观察；不连接券商、不下单、不构成交易指令。触发检查依赖下次行情刷新和系统通知权限。</string>
+    <string name="price_alert_direction_above">上穿目标价</string>
+    <string name="price_alert_direction_below">下破目标价</string>
+    <string name="price_alert_target_hint">目标价</string>
+    <string name="price_alert_status_hint">当前现价 %1$s，请输入目标价查看触发状态。</string>
+    <string name="price_alert_save">保存提醒</string>
+    <string name="price_alert_delete">删除提醒</string>
+    <string name="price_alert_invalid_target">请输入大于 0 的目标价</string>
+
+    <!-- Review -->
+    <string name="market_summary">市场概况</string>
+    <string name="up_count">上涨家数</string>
+    <string name="down_count">下跌家数</string>
+    <string name="limit_up">涨停</string>
+    <string name="limit_down">跌停</string>
+    <string name="total_amount">成交额(亿)</string>
+    <string name="hot_sectors">热门板块</string>
+    <string name="review_view_account">查看账号</string>
+    <string name="review_amount_yi">%1$s亿</string>
+    <string name="review_history_title">历史回溯</string>
+    <string name="review_refresh_snapshot">刷新样本快照</string>
+    <string name="review_watchlist_health_title">自选池体检</string>
+    <string name="review_portfolio_stress_title">自选池压力测试</string>
+    <string name="review_daily_brief_title">每日研究简报</string>
+    <string name="review_portfolio_holding_title">持仓组合</string>
+    <string name="review_research_plan_title">研究计划</string>
+    <string name="review_copy_research_plan">复制研究计划</string>
+    <string name="review_research_plan_copied">研究计划已复制</string>
+    <string name="portfolio_holding_dialog_notice">请输入本机研究用持仓样本。记录只保存在本机，用于估算浮盈亏和风险标签，不连接券商账户。</string>
+    <string name="portfolio_holding_code_hint">股票代码（6位）</string>
+    <string name="portfolio_holding_name_hint">股票名称</string>
+    <string name="portfolio_holding_cost_hint">成本价</string>
+    <string name="portfolio_holding_quantity_hint">数量（股）</string>
+    <string name="portfolio_holding_note_hint">研究备注（可选）</string>
+
+    <!-- Community -->
+    <string name="new_post">发布帖子</string>
+    <string name="like">点赞</string>
+    <string name="comment">评论</string>
+    <string name="community_empty_posts">当前分类暂无本机帖子</string>
+    <string name="community_comment_content_hint">评论内容</string>
+    <string name="community_comment_notice">提示：评论仅用于交流研究方法和复盘记录，不得包含具体交易指令或夸大结果承诺。</string>
+    <string name="community_post_title_hint">标题</string>
+    <string name="community_post_category_hint">分类</string>
+    <string name="community_post_content_hint">内容</string>
+    <string name="community_post_notice">提示：发布内容需遵守社区规范，不得包含具体交易指令、夸大结果承诺或代理操作资金内容。</string>
+    <string name="community_digest_button">研究纪要</string>
+
+    <!-- Auth -->
+    <string name="auth_title">登录/注册</string>
+    <string name="auth_account_status_title">账号状态</string>
+    <string name="auth_display_name_hint">昵称</string>
+    <string name="auth_phone_hint">手机号</string>
+    <string name="auth_password_hint">密码</string>
+    <string name="auth_register">注册</string>
+    <string name="auth_login">登录</string>
+    <string name="auth_enable_daily_reminder">开启每日研究提醒</string>
+    <string name="auth_send_test_reminder">发送测试提醒</string>
+    <string name="auth_logout">退出登录</string>
+    <string name="auth_account_refreshed">账号状态已刷新</string>
+    <string name="auth_delete_account">删除账号与本机资料</string>
+    <string name="auth_delete_account_confirm">确认删除</string>
+    <string name="auth_delete_account_confirm_message">将删除本机账号状态、自选池、目标价提醒、持仓、帖子、评论、策略、复盘快照和行情缓存。此操作不可恢复。</string>
+    <string name="auth_local_account_notice">账号信息和研究资料仅保存在本机；应用不接券商、不下单、不托管资金。</string>
+    <string name="auth_compliance_support_title">合规与支持</string>
+    <string name="auth_compliance_support_summary">查看隐私、协议、账号删除和内测支持说明。</string>
+    <string name="auth_privacy_policy">隐私政策</string>
+    <string name="auth_terms_of_service">用户协议</string>
+    <string name="auth_support_contact">支持说明</string>
+    <string name="auth_open_external_link">打开链接</string>
+    <string name="auth_privacy_policy_message">Quant 交易台用于本机研究记录、行情样本展示和每日提醒。账号、帖子、自选池、目标价提醒、持仓、策略、复盘快照和行情缓存主要保存在本机。应用不接券商、不下单、不托管资金。</string>
+    <string name="auth_terms_of_service_message">本应用提供行情样本、复盘、模型和历史模拟研究工具，所有内容仅作研究参考，不构成投资建议、收益承诺或具体买卖指令。</string>
+    <string name="auth_support_contact_message">账号删除入口已在本页提供。如遇登录、通知或数据问题，请通过项目 issue 或当前安装包分发渠道反馈，并附上问题时间和本机状态。</string>
+    <string name="auth_status_logged_in">已登录</string>
+    <string name="auth_status_logged_out">未登录</string>
+    <string name="auth_phone_unbound">未绑定手机号</string>
+    <string name="auth_notification_enabled_next">每日研究提醒已开启（下次 %1$s）</string>
+    <string name="auth_notification_enabled_permission_missing">每日研究提醒已开启，但系统通知权限未授予</string>
+    <string name="auth_notification_disabled">每日研究提醒未开启</string>
+    <string name="auth_reauthorize_notification">重新授权通知</string>
+    <string name="auth_disable_daily_reminder">关闭每日研究提醒</string>
+    <string name="auth_account_status_format">%1$s\n手机号：%2$s\n%3$s\n%4$s</string>
+
+    <!-- Quant -->
+    <string name="quant_title">量化研究</string>
+    <string name="quant_desc">基于历史数据的模型观察与模拟复盘</string>
+    <string name="strategy_list">研究模型</string>
+    <string name="backtest">历史模拟</string>
+    <string name="create_strategy">创建模型</string>
+    <string name="quant_signal_title">模型信号观察</string>
+    <string name="quant_diagnostic_button">模型诊断</string>
+    <string name="quant_diagnostic_button_score">模型诊断：%1$d分</string>
+    <string name="quant_diagnostic_title">模型诊断</string>
+    <string name="quant_diagnostic_refresh">刷新诊断</string>
+    <string name="quant_diagnostic_loading">模型诊断暂不可用，正在刷新样本数据。</string>
+    <string name="backtest_config_notice">回测为历史模拟研究工具，使用公开或合规 K 线的收盘价信号估算，不代表未来结果。</string>
+    <string name="backtest_stock_code_hint">股票代码（6位）</string>
+    <string name="backtest_default_stock_code">600519</string>
+    <string name="backtest_start_date_hint">开始日期</string>
+    <string name="backtest_end_date_hint">结束日期</string>
+    <string name="strategy_name_hint">策略名称</string>
+    <string name="strategy_desc_hint">策略描述</string>
+    <string name="strategy_sample_win_rate">样本胜率 %1$s%%</string>
+    <string name="strategy_max_drawdown">回撤 %1$s%%</string>
+    <string name="strategy_sharpe">夏普 %1$s</string>
+    <string name="strategy_formula_hint">自定义公式</string>
+    <string name="strategy_formula_notice">可用变量示例：close、ma20、volume、turnover、pe、pb。自定义模型仅用于历史模拟和研究参考，不构成投资建议</string>
+    <string name="strategy_formula_default">close &gt; ma20 &amp;&amp; volume &gt; avg_volume_5</string>
+
+</resources>

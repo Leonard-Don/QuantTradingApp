@@ -1,0 +1,27 @@
+.DS_Store
+
+# Android / Gradle
+.gradle/
+.idea/
+**/build/
+local.properties
+*.iml
+QuantTradingApp/cover.png
+
+# Release signing and local launch secrets
+*.jks
+*.keystore
+*.p12
+release.env
+release-signing.properties
+QuantTradingApp/release-signing.properties
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+
+# QuantTrading backend runtime data
+backend/data/*.db
+backend/data/*.db-*
