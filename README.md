@@ -1,5 +1,10 @@
 # Quant Trading App
 
+[![Android P0](https://github.com/Leonard-Don/QuantTradingApp/actions/workflows/android-p0.yml/badge.svg)](https://github.com/Leonard-Don/QuantTradingApp/actions/workflows/android-p0.yml)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Android](https://img.shields.io/badge/Android-SDK%2035-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Quant Trading App 是一个 Android 股票研究演示项目，基于 Kotlin、Room、Material Design 和多源公开行情样本构建。项目现在作为公开代码仓库保存，用于学习、复盘流程演示和本机研究工具参考。
 
 ## 当前定位
