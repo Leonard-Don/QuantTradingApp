@@ -1,7 +1,6 @@
 plugins {
-    id("com.android.application") version "8.6.1" apply false
-    id("com.android.test") version "8.6.1" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
-    id("org.jetbrains.kotlin.kapt") version "1.9.22" apply false
-    id("androidx.baselineprofile") version "1.3.3" apply false
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.test) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.baselineprofile) apply false
 }
