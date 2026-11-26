@@ -65,7 +65,7 @@ class AppDatabaseMigrationTest {
             database.execSQL(
                 "INSERT INTO `user_state` (`id`, `displayName`, `isLoggedIn`, `legacyFlag`, " +
                     "`legacyExpiresAt`, `createdAt`, `lastLoginAt`) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                arrayOf(LOCAL_USER_ID, "本机测试用户", 1, 1, 1_800_000_000_000L, 100L, 200L)
+                arrayOf<Any>(LOCAL_USER_ID, "本机测试用户", 1, 1, 1_800_000_000_000L, 100L, 200L)
             )
         }
 

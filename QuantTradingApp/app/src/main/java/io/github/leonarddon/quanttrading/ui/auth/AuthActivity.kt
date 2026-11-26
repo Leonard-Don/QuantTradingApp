@@ -3,12 +3,12 @@ package io.github.leonarddon.quanttrading.ui.auth
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import io.github.leonarddon.quanttrading.BuildConfig
 import io.github.leonarddon.quanttrading.R
@@ -192,7 +192,7 @@ class AuthActivity : AppCompatActivity() {
             .setTitle(title)
             .setMessage("$message\n\n链接：$trimmedUrl")
             .setPositiveButton(getString(R.string.auth_open_external_link)) { _, _ ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(trimmedUrl)))
+                startActivity(Intent(Intent.ACTION_VIEW, trimmedUrl.toUri()))
             }
             .setNegativeButton(getString(R.string.dialog_close), null)
             .show()

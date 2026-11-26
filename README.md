@@ -1,7 +1,7 @@
 # Quant Trading App
 
 [![Android P0](https://github.com/Leonard-Don/QuantTradingApp/actions/workflows/android-p0.yml/badge.svg)](https://github.com/Leonard-Don/QuantTradingApp/actions/workflows/android-p0.yml)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-SDK%2035-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -44,9 +44,9 @@ Quant Trading App 是一个 Android 股票研究演示项目，基于 Kotlin、R
 
 ## 技术栈
 
-- Kotlin 1.9.22
-- Android Gradle Plugin 8.6.1
-- compileSdk 35 / targetSdk 35
+- Kotlin 2.2（AGP 9 内置）+ KSP
+- Android Gradle Plugin 9.5.3 / Gradle 9.9.2，依赖版本统一在 `gradle/libs.versions.toml`
+- compileSdk 37 / targetSdk 36
 - Material Design 3
 - MVVM + ViewBinding
 - Navigation Component
